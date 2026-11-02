@@ -140,23 +140,27 @@
     /* rate: last 7 days vs the 7 before */
     var L7 = agg(inRange(iso(addDays(now, -6)), t)), P7 = agg(inRange(iso(addDays(now, -13)), iso(addDays(now, -7))));
     $('#dRate').textContent = L7.rate != null ? L7.rate.toFixed(2) : '—';
-    $('#dRateSub').textContent = L7.n ? 'Last 7 days · ' + money(L7.take) + ' in ' + r2(L7.hours) + 'h' : 'No shifts in the last 7 days';
+    var ymNow = t.slice(0, 7), PMf = agg(inMonth(prevYm(ymNow))), monthEmpty = !inMonth(ymNow).some(function (s) { return s.date <= t; }), fb = monthEmpty && PMf.n > 0, fbName = MONL[fromIso(prevYm(ymNow) + '-01').getMonth()];
+    if (!L7.n && fb && PMf.rate != null) $('#dRate').textContent = PMf.rate.toFixed(2);
+    $('#dRateSub').innerHTML = L7.n ? 'Last 7 days · ' + money(L7.take) + ' in ' + r2(L7.hours) + 'h' : fb ? 'No shifts in the last 7 days · showing <b>' + fbName + '</b> (' + PMf.n + ' shift' + (PMf.n === 1 ? '' : 's') + ', ' + r2(PMf.hours) + 'h)' : 'No shifts in the last 7 days';
     setPill('#dRatePill', L7.n && P7.n ? pill(pct(L7.rate, P7.rate), 'vs last 7 days') : null);
     var byDay = {}; inRange(iso(addDays(now, -29)), t).forEach(function (s) { (byDay[s.date] = byDay[s.date] || []).push(s); });
     var pts = Object.keys(byDay).sort().map(function (d) { return { d: d, t: fromIso(d).getTime(), v: agg(byDay[d]).rate }; });
     $('#dChart').innerHTML = lineChart(pts);
     /* this month */
-    var ym = t.slice(0, 7), R = monthRange(ym), list = inMonth(ym).filter(function (s) { return s.date <= t; }), A = agg(list), tot = A.cash + A.card;
-    $('#dMonthLbl').textContent = '· ' + MONL[R.start.getMonth()];
-    $('#dDonut').innerHTML = donut(A.cash, A.card);
-    $('#dLegend').innerHTML = tot > 0 ? '<div><i class="c-card"></i><span>Card</span><b>' + Math.round(A.card / tot * 100) + '% · ' + money(A.card) + '</b></div><div><i class="c-cash"></i><span>Cash</span><b>' + Math.round(A.cash / tot * 100) + '% · ' + money(A.cash) + '</b></div>' : '<p class="muted s">No cash/card tips this month yet.</p>';
-    $('#dUnknown').textContent = A.unknown ? money(A.unknown) + ' in older tips has no cash/card split (not in the donut)' : '';
-    $('#dEarned').textContent = A.n ? money(A.take) : '$0.00';
+    var ym = t.slice(0, 7), R = monthRange(ym), list = inMonth(ym).filter(function (s) { return s.date <= t; }), A = agg(list);
+    var cList = fb ? inMonth(prevYm(ym)) : list, C = fb ? PMf : A, tot = C.cash + C.card;
+    $('#dMonthLbl').textContent = '· ' + (fb ? fbName : MONL[R.start.getMonth()]);
+    $('#dDonut').innerHTML = donut(C.cash, C.card);
+    $('#dLegend').innerHTML = tot > 0 ? '<div><i class="c-card"></i><span>Card</span><b>' + Math.round(C.card / tot * 100) + '% · ' + money(C.card) + '</b></div><div><i class="c-cash"></i><span>Cash</span><b>' + Math.round(C.cash / tot * 100) + '% · ' + money(C.cash) + '</b></div>' : '<p class="muted s">No cash/card tips this month yet.</p>';
+    $('#dUnknown').textContent = C.unknown ? money(C.unknown) + ' in tips has no cash/card split (not in the donut)' : '';
+    $('#dEarned').textContent = fb ? money(C.take) : A.n ? money(A.take) : '$0.00'; $('#dEarnedLbl').textContent = fb ? 'Total earned · ' + fbName : 'Total earned';
     /* best day this month */
     var dm = {}; list.forEach(function (s) { (dm[s.date] = dm[s.date] || []).push(s); }); var dk = Object.keys(dm), best = null;
     dk.forEach(function (d) { var a = agg(dm[d]); if (!best || a.take > best.a.take) best = { d: d, a: a }; });
+    if (fb) { var bdm = {}; cList.forEach(function (s) { (bdm[s.date] = bdm[s.date] || []).push(s); }); Object.keys(bdm).forEach(function (d) { var a = agg(bdm[d]); if (!best || a.take > best.a.take) best = { d: d, a: a }; }); }
     var avgDay = dk.length ? A.take / dk.length : null;
-    $('#dBest').innerHTML = '<div class="ch"><span class="ic">🏆</span><p class="lbl">Best day</p></div>' + (best ? '<p class="money l">' + money(best.a.take) + '</p><p class="muted s">' + DOW[fromIso(best.d).getDay()] + ', ' + MON[fromIso(best.d).getMonth()] + ' ' + fromIso(best.d).getDate() + ' · ' + rate(best.a.rate) + '</p>' +
+    $('#dBest').innerHTML = '<div class="ch"><span class="ic">🏆</span><p class="lbl">Best day</p></div>' + (best ? (fb ? '<p class="muted xs">' + fbName + ' best</p>' : '') + '<p class="money l">' + money(best.a.take) + '</p><p class="muted s">' + DOW[fromIso(best.d).getDay()] + ', ' + MON[fromIso(best.d).getMonth()] + ' ' + fromIso(best.d).getDate() + ' · ' + rate(best.a.rate) + '</p>' +
       (dk.length > 1 && avgDay > 0 ? '<p class="pill sm">' + pill(pct(best.a.take, avgDay), 'above avg.') + '</p>' : '') : '<p class="muted s">No shifts this month yet.</p>');
     /* weekly averages: last 4 weeks, only counting weeks since your first shift */
     var first = shifts.reduce(function (m, s) { return s.date < m ? s.date : m; }, t), from = iso(addDays(now, -27)); if (first > from) from = first;
@@ -167,8 +171,9 @@
     /* projection: so far + current 7-day daily average × days remaining */
     var daysLeft = R.days - now.getDate(), perDay = L7.take / 7, proj = A.take + perDay * daysLeft, PM = agg(inMonth(prevYm(ym)));
     $('#dProj').textContent = money(proj);
-    setPill('#dProjPill', PM.n ? pill(pct(proj, PM.take), 'vs last month') : null);
-    $('#dProjHow').textContent = L7.n ? 'Based on current 7-day average' : 'No shifts in the last 7 days, so this is what you have so far';
+    $('#dProjPill').className = 'pill'; if (fb && !L7.n) { var pp = $('#dProjPill'); pp.hidden = false; pp.className = 'pill calm'; pp.textContent = fbName + ': ' + money0(PM.take); } else setPill('#dProjPill', PM.n ? pill(pct(proj, PM.take), 'vs last month') : null);
+    $('#dProj').classList.toggle('calm', fb && !L7.n);
+    $('#dProjHow').textContent = L7.n ? 'Based on current 7-day average' : fb ? 'New month · log a shift to start the projection' : 'No shifts in the last 7 days, so this is what you have so far';
     $('#dDaysLeft').textContent = daysLeft + ' day' + (daysLeft === 1 ? '' : 's') + ' remaining';
     var cum = 0, cv = []; for (var d = 1; d <= now.getDate(); d++) { var di = ym + '-' + pad(d); (dm[di] || []).forEach(function (s) { cum += take(s); }); cv.push(cum); }
     $('#dSpark').innerHTML = spark(cv);
@@ -178,11 +183,12 @@
 
   /* ---------- shifts: history ---------- */
   var roleFilter = '';
+  function tipShort(s) { var t = tipsOf(s); return t == null ? (s.note ? esc(s.note) : 'no tips') : money(t) + ' tips'; }
   function tipText(s) { var t = tipsOf(s); if (t == null) return 'no tips'; return splitKnown(s) ? 'cash ' + money(s.cash || 0) + ' · card ' + money(s.card || 0) : 'tips ' + money(t) + ' (split unknown)'; }
   function shiftRow(s) { var tk = take(s);
-    return '<div class="shift" data-id="' + esc(s.id) + '"><div class="main"><div class="t">' + nice(s.date) + ' · ' + cap(s.shift) + (roles.length > 1 || !roleByName(s.role) ? ' · ' + esc(s.role) : '') + '</div>' +
-      '<div class="d">' + (s.clockIn ? fmtTime(s.clockIn) + '–' + fmtTime(s.clockOut) + ' · ' : '') + r2(s.hours) + 'h · ' + tipText(s) + (s.tipout ? ' · tip-out ' + money(s.tipout) : '') + (s.note ? ' · ' + esc(s.note) : '') + '</div></div>' +
-      '<div class="amt"><b>' + money(tk) + '</b><span>' + rate(tk / s.hours) + '</span></div><button class="ibtn" data-act="edit" aria-label="Edit shift">✎</button><button class="ibtn del" data-act="del" aria-label="Delete shift">✕</button></div>'; }
+    return '<div class="shift" data-id="' + esc(s.id) + '" data-act="edit" role="button" tabindex="0" aria-label="Edit ' + nice(s.date) + ' shift"><div class="main"><div class="t">' + nice(s.date) + ' · ' + cap(s.shift) + (roles.length > 1 || !roleByName(s.role) ? ' · ' + esc(s.role) : '') + '</div>' +
+      '<div class="d">' + (s.clockIn ? fmtTime(s.clockIn) + '–' + fmtTime(s.clockOut) + ' · ' : '') + r2(s.hours) + 'h · ' + tipShort(s) + '</div></div>' +
+      '<div class="amt"><b>' + money(tk) + '</b><span>' + rate(tk / s.hours) + '</span></div><span class="chev" aria-hidden="true">›</span></div>'; }
   function renderHistory() {
     var names = []; roles.concat(shifts.map(function (s) { return { name: s.role }; })).forEach(function (r) { if (r.name && names.indexOf(r.name) < 0) names.push(r.name); });
     if (roleFilter && names.indexOf(roleFilter) < 0) roleFilter = '';
@@ -198,9 +204,11 @@
     $('#hList').innerHTML = groups.map(function (g) { var a = agg(g.items); return '<div class="wkhead"><span>Week of ' + nice(g.k) + '</span><span>' + money(a.take) + ' · ' + rate(a.rate) + '</span></div><div class="card">' + g.items.map(shiftRow).join('') + '</div>'; }).join('');
   }
   function onShiftAction(e) { var b = e.target.closest('[data-act]'); if (!b) return; var row = b.closest('[data-id]'); if (!row) return; var id = row.getAttribute('data-id'), s = shifts.find(function (x) { return x.id === id; }); if (!s) return;
-    if (b.getAttribute('data-act') === 'edit') { resetForm(); editing = id; fillForm(s); $('#saveBtn').textContent = 'Update shift'; $('#logTitle').textContent = 'Edit shift'; $('#cancelEdit').hidden = false; go('log'); }
-    else if (confirm('Delete ' + nice(s.date) + ' ' + s.shift + ' (' + money(take(s)) + ')?')) { shifts = shifts.filter(function (x) { return x.id !== id; }); save(); renderAll(); toast('Deleted'); } }
+    if (b.getAttribute('data-act') === 'edit') { resetForm(); editing = id; fillForm(s); $('#saveBtn').textContent = 'Update shift'; $('#logTitle').textContent = 'Edit shift'; $('#cancelEdit').hidden = false; $('#delShift').hidden = false; go('log'); }
+    else if (b.getAttribute('data-act') === 'del' && confirm('Delete ' + nice(s.date) + ' ' + s.shift + ' (' + money(take(s)) + ')?')) { shifts = shifts.filter(function (x) { return x.id !== id; }); save(); renderAll(); toast('Deleted'); } }
 
+  function deleteEditing() { var s = editingRec(); if (!s) return; if (!confirm('Delete ' + nice(s.date) + ' ' + s.shift + ' (' + money(take(s)) + ')? This can’t be undone.')) return;
+    shifts = shifts.filter(function (x) { return x.id !== s.id; }); save(); resetForm(); renderAll(); go('shifts'); toast('Deleted'); }
   /* ---------- calendar + schedule ---------- */
   var calMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1), calSel = null;
   function renderCalendar() {
@@ -265,9 +273,9 @@
     var by = {}; list.forEach(function (s) { if (tipsOf(s) != null) (by[s.date] = by[s.date] || []).push(s); });
     $('#tDays').innerHTML = Object.keys(by).sort().reverse().map(function (d) { var a = agg(by[d]); return '<div class="dayrow"><span>' + nice(d) + '</span><span class="muted">' + (a.unknown ? '' : 'cash ' + money0(a.cash) + ' · card ' + money0(a.card)) + '</span><b>' + money(a.tips) + '</b></div>'; }).join('') || '<p class="muted s">No tips this month.</p>';
     var G = {}; shifts.forEach(function (s) { var k = ((fromIso(s.date).getDay() + 6) % 7) + s.shift; (G[k] = G[k] || []).push(s); });
-    $('#dayGrid').innerHTML = shifts.length ? '<table class="dg"><thead><tr><th></th>' + SHIFTS.map(function (s) { return '<th>' + cap(s).slice(0, 5) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    $('#dayGrid').innerHTML = shifts.length ? '<table class="dg"><thead><tr><th></th>' + SHIFTS.map(function (s) { return '<th>' + ({ breakfast: 'Bkfst', lunch: 'Lunch', dinner: 'Dinner', overnight: 'Late' }[s] || cap(s)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (dn, i) { return '<tr><th>' + dn + '</th>' + SHIFTS.map(function (sh) { var g = G[i + sh]; if (!g) return '<td class="none">·</td>'; var a = agg(g);
-        return '<td data-k="' + dn + '-' + sh + '"><b>' + money0(a.take / a.n) + '</b><span>' + rate(a.rate).replace('/hr', '/h') + ' · ' + a.n + '</span></td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table><p class="xs">All time · avg take-home per shift, $/hr, shift count</p>' : '<p class="muted s">Log shifts to see which days and shifts pay best.</p>'; }
+        return '<td data-k="' + dn + '-' + sh + '"><b>' + money0(a.take / a.n) + '</b><span>' + rate(a.rate).replace('/hr', '/h') + ' · ' + a.n + '</span></td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table><p class="xs">Bkfst = breakfast · Late = overnight</p><p class="xs">All time · avg take-home per shift, $/hr, shift count</p>' : '<p class="muted s">Log shifts to see which days and shifts pay best.</p>'; }
 
   /* ---------- reports ---------- */
   var wkStart = monday(new Date());
@@ -307,7 +315,7 @@
   function deriveShift(ci, co) { if (!okTime(ci)) return null; var g = shiftFor(ci); if (okTime(co) && co <= ci && g === 'dinner' && +co.slice(0, 2) >= 2) g = 'overnight'; return g; }
   function guessShift() { var ci = normTime($('#fIn').value), co = normTime($('#fOut').value), g = deriveShift(ci, co) || keptShift, h = spanHours(ci, co);
     $('#autoShift').innerHTML = g ? 'Shift: <b>' + cap(g) + '</b>' + (h ? ' · ' + h + 'h' + (co && co <= ci ? ' (ends next day)' : '') : '') : '<span class="muted">Shift type fills in from your clock-in time</span>'; }
-  function resetForm() { editing = null; pendingSched = null; formWage = null; $('#form').reset(); keptShift = null; $('#fDate').value = iso(new Date()); renderRoleChips(defaultRole().name); guessShift();
+  function resetForm() { var dz = document.getElementById('delShift'); if (dz) dz.hidden = true; editing = null; pendingSched = null; formWage = null; $('#form').reset(); keptShift = null; $('#fDate').value = iso(new Date()); renderRoleChips(defaultRole().name); guessShift();
     $('#saveBtn').textContent = 'Add shift'; $('#logTitle').textContent = 'Log shift'; $('#cancelEdit').hidden = true; $('#formErr').textContent = ''; $('#hoursHint').textContent = ''; $('#legacyNote').hidden = true; $('#more').open = false; moreSummary(); updateTake(); }
   function fillForm(s) { $('#fDate').value = s.date || iso(new Date()); renderRoleChips(s.role || defaultRole().name); formWage = okWage(s.wage) ? s.wage : null;
     keptShift = s.clockIn ? null : (s.shift || null);
@@ -415,6 +423,7 @@
     locked.forEach(function (x) { if (!next || x.frac > next.frac) next = x; });
     return { items: items, earned: earned, bestNight: bestNight, bestNightDates: bestNightDates, bestRate: bestRate, cur: cur, best: best, count: L.length, next: next }; }
   function lastBackup() { var v = localStorage.getItem(K.backup); return v && !isNaN(Date.parse(v)) ? v : null; }
+  var msOpen = false;
   function renderMilestones() { var w = $('#msWrap'); if (!w) return; var m = milestones(shifts, lastBackup());
     if (!m.count) { w.innerHTML = '<div class="card ms-empty muted s">Log your first shift to start earning milestones.</div>'; return; }
     var h = '';
@@ -424,7 +433,7 @@
       h += '<div class="card ms-next" id="msNext"><div class="ms-top"><span><b>Next up:</b> ' + esc(nx.name) + '</span><b class="money">' + lab + '</b></div><div class="ms-bar"><i style="width:' + Math.round(nx.frac * 100) + '%"></i></div><small class="muted">' + sub + '</small></div>'; }
     var E = m.items.filter(function (x) { return x.earned; }), Lk = m.items.filter(function (x) { return !x.earned; });
     function bd(x) { return '<div class="ms-bd' + (x.earned ? '' : ' lk') + '" data-ms="' + x.id + '"><div class="ms-c" aria-hidden="true">' + (x.earned ? x.ic : '🔒') + '</div><span>' + esc(x.name) + '</span><em>' + (x.earned ? shortD(x.earned) : esc(x.prog)) + '</em></div>'; }
-    h += '<div class="card"><p class="ms-h">Earned · ' + E.length + '</p><div class="ms-grid" id="msEarned">' + E.map(bd).join('') + '</div><p class="ms-h">Locked · ' + Lk.length + '</p><div class="ms-grid" id="msLocked">' + Lk.map(bd).join('') + '</div></div>';
+    h += '<div class="card"><p class="ms-h">Earned · ' + E.length + '</p><div class="ms-grid" id="msEarned">' + E.map(bd).join('') + '</div>' + (Lk.length ? '<button type="button" class="btn sm wide ms-more" id="msMore" aria-expanded="' + msOpen + '">' + (msOpen ? 'Hide locked badges' : 'Show ' + Lk.length + ' locked badge' + (Lk.length === 1 ? '' : 's') + ' ›') + '</button><div id="msLockedBox"' + (msOpen ? '' : ' hidden') + '><p class="ms-h">Locked · ' + Lk.length + '</p><div class="ms-grid" id="msLocked">' + Lk.map(bd).join('') + '</div></div>' : '') + '</div>';
     w.innerHTML = h; }
   function celebrate(before, after, rec) { var t = tipsOf(rec) || 0, title = null, sub = '', ic = '🏆', newIds = MS.filter(function (m) { return after.earned[m.id] && !before.earned[m.id]; });
     if (before.count > 0 && after.bestNight > before.bestNight && t === after.bestNight) { title = 'New best night! <b>' + money0(t) + '</b>'; sub = 'Your top tip night so far · ' + nice(rec.date) + '.'; }
@@ -454,7 +463,7 @@
     ['#fIn', '#fOut'].forEach(function (s) { ['input', 'change'].forEach(function (ev) { $(s).addEventListener(ev, function () { guessShift(); var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)); if (sp != null) $('#fHours').value = sp; hoursHint(); updateTake(); }); }); });
     $('#fHours').addEventListener('input', hoursHint); $('#form').addEventListener('input', function () { updateTake(); moreSummary(); }); $('#form').addEventListener('change', updateTake);
     $('#form').addEventListener('submit', function (e) { e.preventDefault(); var f = readForm(), err = validate(f); $('#formErr').textContent = err; if (/Hours|date/.test(err)) $('#more').open = true; if (!err) commit(f); });
-    $('#hList').addEventListener('click', onShiftAction);
+    $('#hList').addEventListener('click', onShiftAction); $('#hList').addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.shift[data-act]')) { e.preventDefault(); onShiftAction(e); } });
     $('#roleFilter').addEventListener('click', function (e) { var b = e.target.closest('[data-rf]'); if (b) { roleFilter = b.getAttribute('data-rf'); renderHistory(); } });
     $('#calPrev').addEventListener('click', function () { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); calSel = null; renderCalendar(); });
     $('#calNext').addEventListener('click', function () { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); calSel = null; renderCalendar(); });
@@ -472,6 +481,8 @@
     ['#gWeek', '#gMonth'].forEach(function (s) { $(s).addEventListener('change', function () { var v = num(this.value), g = getJSON(K.goals) || {}; if (v != null && (isNaN(v) || v < 0)) { toast('Goal should be a number'); this.value = ''; return; }
       g[s === '#gWeek' ? 'week' : 'month'] = v ? r2(v) : null; setJSON(K.goals, g); renderReports(); }); });
     $('#csvBtn').addEventListener('click', exportCSV); $('#repCsv').addEventListener('click', exportCSV);
+    $('#msWrap').addEventListener('click', function (e) { if (e.target.closest('#msMore')) { msOpen = !msOpen; renderMilestones(); } });
+    $('#delShift').addEventListener('click', deleteEditing);
     $('#celDone').addEventListener('click', function () { $('#cel').hidden = true; $('#celConf').innerHTML = ''; }); $('#cel').addEventListener('click', function (e) { if (e.target === this) $('#celDone').click(); });
     $('#backupBtn').addEventListener('click', doBackup); $('#restoreBtn').addEventListener('click', function () { $('#restoreFile').click(); }); $('#restoreFile').addEventListener('change', onRestoreFile);
     $('#iconPick').addEventListener('click', function (e) { var b = e.target.closest('[data-icon]'); if (!b) return; var v = b.getAttribute('data-icon'); localStorage.setItem(K.icon, v); applyIcon(v); toast(v === 'dark' ? 'Dark icon on' : 'Green icon on'); });

@@ -43,7 +43,7 @@
         <p class="lbl">Cash vs card <span class="muted xs" id="dMonthLbl"></span></p>
         <div class="cc-row"><div id="dDonut"></div><div class="legend" id="dLegend"></div></div>
         <p class="muted xs" id="dUnknown"></p>
-        <div class="earned"><span class="wallet"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V7zM4 7l11-3v3M16 13.5h.01"/></svg></span><div><p class="muted s">Total earned</p><p class="money l" id="dEarned">—</p></div></div>
+        <div class="earned"><span class="wallet"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V7zM4 7l11-3v3M16 13.5h.01"/></svg></span><div><p class="muted s" id="dEarnedLbl">Total earned</p><p class="money l" id="dEarned">—</p></div></div>
       </div>
       <div class="row2">
         <div class="card best" id="dBest"></div>
@@ -111,6 +111,7 @@
       <p class="err" id="formErr" role="alert"></p>
       <button type="submit" class="btn primary wide big" id="saveBtn">Add shift</button>
       <button type="button" class="btn ghost wide" id="cancelEdit" hidden>Cancel edit</button>
+      <button type="button" class="btn ghost wide danger-t" id="delShift" hidden>Delete shift</button>
     </form>
   </section>
 
@@ -142,6 +143,8 @@
   <!-- PROFILE -->
   <section class="screen" id="s-profile" hidden>
     <h1>Profile</h1>
+    <p class="lbl sec">Milestones</p>
+    <div id="msWrap"></div>
     <div class="card">
       <div class="setrow"><span>Dark mode</span><label class="switch"><input type="checkbox" id="darkToggle" checked><i></i></label></div>
     </div>
@@ -151,8 +154,6 @@
       <div class="role-row add"><input type="text" id="newRoleName" maxlength="40" placeholder="New role, e.g. Bartender"><span>$</span><input type="text" inputmode="decimal" id="newRoleWage" placeholder="16.90"><button type="button" class="btn sm" id="addRole">Add</button></div>
       <p class="muted xs">Each shift saves its role and wage when you log it, so changing a wage never rewrites past shifts.</p>
     </div>
-    <p class="lbl sec">Milestones</p>
-    <div id="msWrap"></div>
     <div class="card">
       <p class="lbl">Your data</p>
       <button class="btn primary wide" id="csvBtn">Export CSV</button>

@@ -178,3 +178,8 @@ html[data-theme=light] .pill .down{color:#B91C1C}
 .cel-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none}.cel-conf i{position:absolute;top:-16px;width:7px;height:12px;border-radius:2px;opacity:0;animation:celf 2.4s ease-in forwards}
 @keyframes celf{0%{opacity:0;transform:translateY(0) rotate(var(--r))}10%{opacity:.9}100%{opacity:0;transform:translateY(70vh) rotate(calc(var(--r) + 300deg))}}
 @media (prefers-reduced-motion:reduce){.cel-conf{display:none}}
+
+/* v18 design polish */
+.shift[data-act=edit]{cursor:pointer;min-height:56px}.shift[data-act=edit]:active{background:rgba(255,255,255,.03)}.shift .chev{color:var(--text2);font-size:22px;line-height:1;margin-left:2px}
+.pill.calm{background:var(--input);color:var(--text2)}#dProj.calm{color:var(--text2)}
+.danger-t{color:var(--danger)}.ms-more{margin-top:12px;background:var(--input)}
