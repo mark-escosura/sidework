@@ -151,6 +151,8 @@
       <div class="role-row add"><input type="text" id="newRoleName" maxlength="40" placeholder="New role, e.g. Bartender"><span>$</span><input type="text" inputmode="decimal" id="newRoleWage" placeholder="16.90"><button type="button" class="btn sm" id="addRole">Add</button></div>
       <p class="muted xs">Each shift saves its role and wage when you log it, so changing a wage never rewrites past shifts.</p>
     </div>
+    <p class="lbl sec">Milestones</p>
+    <div id="msWrap"></div>
     <div class="card">
       <p class="lbl">Your data</p>
       <button class="btn primary wide" id="csvBtn">Export CSV</button>
@@ -176,6 +178,7 @@
   <button data-tab="insights"><svg viewBox="0 0 24 24"><path d="M6 20v-6M12 20V9M18 20V4"/></svg><span>Insights</span></button>
   <button data-tab="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1-4 4-6 7.5-6s6.5 2 7.5 6"/></svg><span>Profile</span></button>
 </nav>
+<div class="cel" id="cel" hidden><div class="cel-conf" id="celConf" aria-hidden="true"></div><div class="cel-sheet" role="dialog" aria-modal="true" aria-labelledby="celT"><div class="cel-ic" id="celIc" aria-hidden="true">🏆</div><h3 id="celT"></h3><p id="celSub"></p><div class="cel-chips" id="celChips"></div><button type="button" class="btn primary wide" id="celDone">Done</button></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="app.js"></script>
 </body>

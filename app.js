@@ -3,7 +3,7 @@
   'use strict';
   var $ = function (s) { return document.querySelector(s); }, $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
   var SHIFTS = ['breakfast', 'lunch', 'dinner', 'overnight'];
-  var K = { shifts: 'serverlife.shifts.v2', roles: 'serverlife.roles', last: 'serverlife.lastRole', sched: 'serverlife.schedule', goals: 'serverlife.goals', theme: 'serverlife.theme', icon: 'serverlife.icon' };
+  var K = { shifts: 'serverlife.shifts.v2', roles: 'serverlife.roles', last: 'serverlife.lastRole', sched: 'serverlife.schedule', goals: 'serverlife.goals', theme: 'serverlife.theme', icon: 'serverlife.icon', backup: 'serverlife.lastBackup' };
   var OLD = { shifts: 'tiptracker.shifts.v1', roles: 'tiptracker.roles', wage: 'tiptracker.wage', sched: 'tiptracker.schedule.v1' };
   var DEFAULT_WAGE = 16.90;
   var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], DOWL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -334,13 +334,13 @@
   function hoursHint() { var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)), h = num($('#fHours').value);
     $('#hoursHint').textContent = sp == null ? '' : h != null && !isNaN(h) && Math.abs(h - sp) > 0.004 ? '(' + sp + 'h clocked, ' + (h < sp ? r2(sp - h) + 'h break' : 'override') + ')' : '(from clock)'; }
   function moreSummary() { var f = readForm(), b = []; if (f.date && f.date !== iso(new Date())) b.push(nice(f.date)); if (f.tipout) b.push('tipped out ' + money(f.tipout)); if (f.sales) b.push('sales ' + money(f.sales)); if (f.note) b.push('note'); $('#moreSum').textContent = b.length ? '· ' + b.join(' · ') : ''; }
-  function commit(f) { var role = roleByName(f.role), prev = editingRec(), T = formTips(f);
+  function commit(f) { var role = roleByName(f.role), prev = editingRec(), T = formTips(f), msBefore = milestones(shifts, lastBackup());
     var w = prev && prev.role === f.role && okWage(prev.wage) ? prev.wage : role ? role.wage : prev ? prev.wage : roles[0].wage; if (role) localStorage.setItem(K.last, role.id);
     var rec = { date: f.date, shift: f.shift, role: f.role, wage: r2(w), clockIn: f.clockIn, clockOut: f.clockOut, hours: r2(f.hours), cash: T.cash, card: T.card, tips: T.tips,
       tipout: r2(f.tipout || 0), sales: f.sales == null ? null : r2(f.sales), note: f.note.slice(0, 200) };
     if (prev) { rec.id = prev.id; rec.createdAt = prev.createdAt; shifts[shifts.indexOf(prev)] = rec; } else { rec.id = uid(); rec.createdAt = new Date().toISOString(); shifts.push(rec); }
     if (pendingSched && !prev) { var ps = sched.find(function (x) { return x.id === pendingSched; }); if (ps) { ps.logged = rec.id; saveSched(); } }
-    save(); toast((prev ? 'Updated' : 'Saved') + ' · ' + money(take(rec)) + ' take-home · ' + rate(take(rec) / rec.hours)); resetForm(); period = rec.date.slice(0, 7) <= iso(new Date()).slice(0, 7) ? rec.date.slice(0, 7) : period; renderAll(); go(prev ? 'shifts' : 'dashboard'); }
+    save(); var msCel = celebrate(msBefore, milestones(shifts, lastBackup()), rec); if (!msCel) toast((prev ? 'Updated' : 'Saved') + ' · ' + money(take(rec)) + ' take-home · ' + rate(take(rec) / rec.hours)); resetForm(); period = rec.date.slice(0, 7) <= iso(new Date()).slice(0, 7) ? rec.date.slice(0, 7) : period; renderAll(); go(prev ? 'shifts' : 'dashboard'); }
   function prefillFromLink() { var q = new URLSearchParams(location.search); if (!q.has('log') && !q.has('in')) return false;
     var d = q.get('log'), sh = q.get('shift'), rl = roleByName(q.get('role')), ci = normTime(q.get('in')), co = normTime(q.get('out'));
     resetForm(); fillForm({ date: /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : iso(new Date()), shift: !(ci && co) && SHIFTS.indexOf(sh) >= 0 ? sh : null, role: rl ? rl.name : null, clockIn: ci && co ? ci : null, clockOut: ci && co ? co : null, hours: ci && co ? spanHours(ci, co) : null });
@@ -367,7 +367,7 @@
   /* ---------- backup / restore (on-device only) ---------- */
   function backupData() { var d = {}; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf('serverlife.') === 0) { var v = localStorage.getItem(k); try { d[k] = JSON.parse(v); } catch (e) { d[k] = v; } } }
     return { app: 'Side Work', format: 1, exportedAt: new Date().toISOString(), data: d }; }
-  function doBackup() { var txt = JSON.stringify(backupData(), null, 1), name = 'sidework-backup-' + iso(new Date()) + '.json';
+  function doBackup() { localStorage.setItem(K.backup, new Date().toISOString()); renderMilestones(); var txt = JSON.stringify(backupData(), null, 1), name = 'sidework-backup-' + iso(new Date()) + '.json';
     try { var f = new File([txt], name, { type: 'application/json' }); if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: 'Side Work backup' }).catch(function () {}); return; } } catch (e) {}
     download(name, txt, 'application/json'); toast('Backup saved · ' + shifts.length + ' shift' + (shifts.length === 1 ? '' : 's')); }
   function restoreFrom(obj) { var d = obj && obj.data && typeof obj.data === 'object' ? obj.data : obj, inc = Array.isArray(d) ? d : d && (d[K.shifts] || d.shifts);
@@ -382,8 +382,62 @@
     rd.onload = function () { var obj; try { obj = JSON.parse(rd.result); } catch (x) { toast('Could not read that file'); return; } var r = restoreFrom(obj);
       if (r.error) { toast(r.error); return; } renderRoleSettings(); renderAll(); toast('Restored ' + r.added + ' shift' + (r.added === 1 ? '' : 's') + (r.skipped ? ' · ' + r.skipped + ' already here' : '')); };
     rd.readAsText(f); }
+  /* ---------- streaks & milestones (computed from logged shifts only) ---------- */
+  var MS = [
+    { id: 'first', ic: '⭐', name: 'First shift', kind: 'count', n: 1 },
+    { id: 'n50', ic: '💵', name: 'First $50 night', kind: 'night', n: 50 },
+    { id: 'n100', ic: '💸', name: 'First $100 night', kind: 'night', n: 100 },
+    { id: 'n150', ic: '🤑', name: 'First $150 night', kind: 'night', n: 150 },
+    { id: 'm500', ic: '📅', name: '$500 month', kind: 'month', n: 500 },
+    { id: 'm1000', ic: '🗓️', name: '$1,000 month', kind: 'month', n: 1000 },
+    { id: 'c10', ic: '🔟', name: '10 shifts logged', kind: 'count', n: 10 },
+    { id: 'c25', ic: '🎯', name: '25 shifts', kind: 'count', n: 25 },
+    { id: 'c50', ic: '🏅', name: '50 shifts', kind: 'count', n: 50 },
+    { id: 'c100', ic: '💯', name: '100 shifts', kind: 'count', n: 100 },
+    { id: 'bk', ic: '🛡️', name: 'Backed up this month', kind: 'backup' }];
+  function shortD(d) { var x = new Date(d + 'T12:00:00'); return x.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+  function milestones(list, backupTs, today) {
+    today = today || new Date(); var L = list.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.createdAt || '') < String(b.createdAt || '') ? -1 : 1; });
+    var earned = {}, mon = {}, bestNight = 0, bestNightDates = [], bestRate = 0, weeks = {};
+    L.forEach(function (s, i) { var t = tipsOf(s) || 0, ym = s.date.slice(0, 7); weeks[iso(monday(new Date(s.date + 'T12:00:00')))] = 1; mon[ym] = r2((mon[ym] || 0) + t);
+      if (t > bestNight) { bestNight = t; bestNightDates = [s.date]; } else if (t > 0 && t === bestNight) bestNightDates.push(s.date);
+      if (t > 0 && s.hours > 0 && t / s.hours > bestRate) bestRate = r2(t / s.hours);
+      MS.forEach(function (m) { if (earned[m.id]) return; if ((m.kind === 'count' && i + 1 >= m.n) || (m.kind === 'night' && t >= m.n) || (m.kind === 'month' && mon[ym] >= m.n)) earned[m.id] = s.date; }); });
+    var thisYm = iso(today).slice(0, 7); if (backupTs && iso(new Date(backupTs)).slice(0, 7) === thisYm) earned.bk = iso(new Date(backupTs));
+    var monthBest = 0; Object.keys(mon).forEach(function (k) { if (mon[k] > monthBest) monthBest = mon[k]; });
+    var wk = Object.keys(weeks).sort(), best = 0, run = 0, prev = null;
+    wk.forEach(function (w) { var d = new Date(w + 'T12:00:00'); if (prev) { var p = new Date(prev + 'T12:00:00'); p.setDate(p.getDate() + 7); run = iso(p) === w ? run + 1 : 1; } else run = 1; if (run > best) best = run; prev = w; });
+    var cur = 0, c = monday(today); if (!weeks[iso(c)]) c.setDate(c.getDate() - 7); while (weeks[iso(c)]) { cur++; c.setDate(c.getDate() - 7); }
+    var items = MS.map(function (m) { var have = m.kind === 'count' ? L.length : m.kind === 'night' ? bestNight : m.kind === 'month' ? (mon[thisYm] || 0) : 0;
+      var prog = m.kind === 'count' ? L.length + ' / ' + m.n : m.kind === 'night' ? money0(bestNight) + ' best' : m.kind === 'month' ? 'This month ' + money0(mon[thisYm] || 0) : 'Tap Backup';
+      return { id: m.id, ic: m.ic, name: m.name, kind: m.kind, n: m.n, earned: earned[m.id] || null, have: have, frac: m.n ? Math.min(1, have / m.n) : 0, prog: prog }; });
+    var locked = items.filter(function (x) { return !x.earned && x.kind !== 'backup'; }), next = null;
+    locked.forEach(function (x) { if (!next || x.frac > next.frac) next = x; });
+    return { items: items, earned: earned, bestNight: bestNight, bestNightDates: bestNightDates, bestRate: bestRate, cur: cur, best: best, count: L.length, next: next }; }
+  function lastBackup() { var v = localStorage.getItem(K.backup); return v && !isNaN(Date.parse(v)) ? v : null; }
+  function renderMilestones() { var w = $('#msWrap'); if (!w) return; var m = milestones(shifts, lastBackup());
+    if (!m.count) { w.innerHTML = '<div class="card ms-empty muted s">Log your first shift to start earning milestones.</div>'; return; }
+    var h = '';
+    if (m.cur > 0) h += '<div class="card ms-streak"><span class="ms-fl" aria-hidden="true">🔥</span><div><b>' + m.cur + ' week' + (m.cur === 1 ? '' : 's') + ' in a row</b><small>Weeks with at least one shift.' + (m.best > m.cur ? ' Best: ' + m.best + ' weeks.' : '') + '</small></div></div>';
+    else if (m.best > 0) h += '<div class="card ms-streak"><span class="ms-fl" aria-hidden="true">🔥</span><div><b>Best streak: ' + m.best + ' week' + (m.best === 1 ? '' : 's') + '</b><small>Weeks in a row with at least one shift.</small></div></div>';
+    if (m.next) { var nx = m.next, lab = nx.kind === 'count' ? nx.have + ' / ' + nx.n : money0(nx.have) + ' / ' + money0(nx.n), sub = nx.kind === 'night' ? 'Best night ' + money0(m.bestNight) + (m.bestNightDates.length ? ' (' + m.bestNightDates.map(shortD).join(' & ') + ')' : '') + ' · ' + money0(nx.n - nx.have) + ' to go' : nx.kind === 'month' ? money0(nx.n - nx.have) + ' to go this month' : (nx.n - nx.have) + ' more shift' + (nx.n - nx.have === 1 ? '' : 's');
+      h += '<div class="card ms-next" id="msNext"><div class="ms-top"><span><b>Next up:</b> ' + esc(nx.name) + '</span><b class="money">' + lab + '</b></div><div class="ms-bar"><i style="width:' + Math.round(nx.frac * 100) + '%"></i></div><small class="muted">' + sub + '</small></div>'; }
+    var E = m.items.filter(function (x) { return x.earned; }), Lk = m.items.filter(function (x) { return !x.earned; });
+    function bd(x) { return '<div class="ms-bd' + (x.earned ? '' : ' lk') + '" data-ms="' + x.id + '"><div class="ms-c" aria-hidden="true">' + (x.earned ? x.ic : '🔒') + '</div><span>' + esc(x.name) + '</span><em>' + (x.earned ? shortD(x.earned) : esc(x.prog)) + '</em></div>'; }
+    h += '<div class="card"><p class="ms-h">Earned · ' + E.length + '</p><div class="ms-grid" id="msEarned">' + E.map(bd).join('') + '</div><p class="ms-h">Locked · ' + Lk.length + '</p><div class="ms-grid" id="msLocked">' + Lk.map(bd).join('') + '</div></div>';
+    w.innerHTML = h; }
+  function celebrate(before, after, rec) { var t = tipsOf(rec) || 0, title = null, sub = '', ic = '🏆', newIds = MS.filter(function (m) { return after.earned[m.id] && !before.earned[m.id]; });
+    if (before.count > 0 && after.bestNight > before.bestNight && t === after.bestNight) { title = 'New best night! <b>' + money0(t) + '</b>'; sub = 'Your top tip night so far · ' + nice(rec.date) + '.'; }
+    else if (newIds.length) { ic = newIds[0].ic; title = esc(newIds[0].name) + '!'; sub = 'Milestone unlocked · ' + nice(rec.date) + '.'; }
+    else if (before.bestRate > 0 && after.bestRate > before.bestRate && t > 0 && r2(t / rec.hours) === after.bestRate) { ic = '⚡'; title = 'New best tips rate! <b>' + money(after.bestRate) + '/hr</b>'; sub = nice(rec.date) + '.'; }
+    if (!title) return false;
+    if (title.indexOf('best') >= 0 && newIds.length) sub += ' Also unlocked: ' + newIds.map(function (m) { return esc(m.name); }).join(', ') + '.';
+    $('#celIc').textContent = ic; $('#celT').innerHTML = title; $('#celSub').textContent = sub.replace(/<[^>]*>/g, '');
+    $('#celChips').innerHTML = '<span>' + rec.hours + ' h</span>' + (t > 0 ? '<span>' + money(t / rec.hours) + '/hr in tips</span>' : '') + '<span>' + esc(rec.shift.charAt(0).toUpperCase() + rec.shift.slice(1)) + '</span>';
+    var cf = $('#celConf'); cf.innerHTML = ''; if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { var c = ['#34D399', '#10B981', '#2DD4BF', '#FBBF24', '#F3F4F6'], s = ''; for (var i = 0; i < 28; i++) s += '<i style="left:' + ((i * 37) % 96 + 2) + '%;background:' + c[i % 5] + ';animation-delay:' + ((i * 53) % 600) + 'ms;--r:' + ((i * 47) % 360) + 'deg"></i>'; cf.innerHTML = s; }
+    $('#cel').hidden = false; $('#celDone').focus(); return true; }
   var toastT; function toast(m) { var t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 2600); }
-  function renderAll() { renderMonthPick(); renderBanner(); renderDashboard(); renderHistory(); renderCalendar(); renderTips(); renderReports(); renderInsightsEmpty(); }
+  function renderAll() { renderMonthPick(); renderBanner(); renderDashboard(); renderHistory(); renderCalendar(); renderTips(); renderReports(); renderInsightsEmpty(); renderMilestones(); }
 
   function bind() {
     $('#tabbar').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) go(b.getAttribute('data-tab')); });
@@ -418,6 +472,7 @@
     ['#gWeek', '#gMonth'].forEach(function (s) { $(s).addEventListener('change', function () { var v = num(this.value), g = getJSON(K.goals) || {}; if (v != null && (isNaN(v) || v < 0)) { toast('Goal should be a number'); this.value = ''; return; }
       g[s === '#gWeek' ? 'week' : 'month'] = v ? r2(v) : null; setJSON(K.goals, g); renderReports(); }); });
     $('#csvBtn').addEventListener('click', exportCSV); $('#repCsv').addEventListener('click', exportCSV);
+    $('#celDone').addEventListener('click', function () { $('#cel').hidden = true; $('#celConf').innerHTML = ''; }); $('#cel').addEventListener('click', function (e) { if (e.target === this) $('#celDone').click(); });
     $('#backupBtn').addEventListener('click', doBackup); $('#restoreBtn').addEventListener('click', function () { $('#restoreFile').click(); }); $('#restoreFile').addEventListener('change', onRestoreFile);
     $('#iconPick').addEventListener('click', function (e) { var b = e.target.closest('[data-icon]'); if (!b) return; var v = b.getAttribute('data-icon'); localStorage.setItem(K.icon, v); applyIcon(v); toast(v === 'dark' ? 'Dark icon on' : 'Green icon on'); });
     $('#darkToggle').addEventListener('change', function () { var t = this.checked ? 'dark' : 'light'; localStorage.setItem(K.theme, t); applyTheme(t); });
@@ -435,6 +490,6 @@
     window.addEventListener('hashchange', function () { var k = (location.hash || '').slice(1); if (TAB[k] && (ALIAS[k] || k) !== screen) go(k); });
     var h = (location.hash || '').slice(1); if (prefillFromLink()) { renderAll(); go('log'); } else go(TAB[h] ? h : 'dashboard');
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {}); }
-  window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; } };
+  window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
