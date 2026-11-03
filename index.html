@@ -143,48 +143,71 @@
 
   <!-- PROFILE -->
   <section class="screen" id="s-profile" hidden>
+   <div id="pfMain">
     <h1>Profile</h1>
-    <p class="lbl sec">Milestones</p>
-    <div id="msWrap"></div>
-    <div class="card">
-      <div class="setrow"><span>Dark mode</span><label class="switch"><input type="checkbox" id="darkToggle" checked><i></i></label></div>
-    </div>
-    <div class="card">
-      <p class="lbl">Roles &amp; hourly wage</p>
-      <div id="roleList"></div>
-      <div class="role-row add"><input type="text" id="newRoleName" maxlength="40" placeholder="New role, e.g. Bartender"><span>$</span><input type="text" inputmode="decimal" id="newRoleWage" placeholder="16.90"><button type="button" class="btn sm" id="addRole">Add</button></div>
-      <p class="muted xs">Each shift saves its role and wage when you log it, so changing a wage never rewrites past shifts.</p>
-    </div>
-    <div class="card" id="acctCard" hidden>
-      <p class="lbl">Account &amp; sync</p>
+    <div class="card pf-hero" id="pfHeroLocal"><div class="pf-av off" aria-hidden="true">SW</div><div class="pf-id"><b>On this phone only</b><small>No account. Your shifts never leave this phone.</small></div></div>
+    <div class="card pf-hero-wrap" id="acctCard" hidden>
       <div id="acctOut">
-        <p class="muted xs" style="margin-top:0">Optional. Sign in to back up shifts to your account and sync across devices. The app works the same without it.</p>
+        <div class="pf-hero"><div class="pf-av off" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div><div class="pf-id"><b>On this phone only</b><small>Sign in to back up and sync across devices. Optional.</small></div></div>
         <button type="button" class="btn primary wide" id="acOpen">Sign in or create account</button>
       </div>
       <div id="acctIn" hidden>
-        <div class="setrow"><span>Signed in as</span><b id="acWho"></b></div>
-        <div class="setrow"><span>Sync</span><span id="acStatus" class="muted">—</span></div>
-        <div class="bkrow"><button type="button" class="btn wide" id="acSync">Sync now</button><button type="button" class="btn danger wide" id="acOutBtn">Sign out</button></div>
-        <p class="muted xs">Signing out keeps your shifts on this phone.</p>
+        <div class="pf-hero"><div class="pf-av" id="pfAv" aria-hidden="true">?</div><div class="pf-id"><b id="pfName">Your account</b><small id="acWho"></small><span class="pf-sync"><i></i><span id="acStatus">—</span></span></div></div>
       </div>
       <p class="muted xs" id="acMsg" role="status"></p>
     </div>
-    <div class="card">
-      <p class="lbl">Your data</p>
-      <button class="btn primary wide" id="csvBtn">Export CSV</button>
-      <div class="bkrow"><button type="button" class="btn wide" id="backupBtn">Backup</button><button type="button" class="btn wide" id="restoreBtn">Restore</button></div>
-      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
-      <p class="muted xs">Backup saves a file of all your app data. Restore adds shifts from a backup file without duplicates.</p>
-      <p class="muted xs" id="privNote">Everything stays on this phone. No accounts, no bank, nothing shared.</p>
+    <div class="pf-stats" id="pfStats"></div>
+    <p class="lbl sec">Work</p>
+    <div class="pf-grp">
+      <button type="button" class="pf-row" id="pfRolesBtn"><span class="pf-ic g">$</span><span class="pf-t">Roles &amp; base pay</span><span class="pf-v" id="pfWageV"></span><span class="pf-ch">›</span></button>
+      <button type="button" class="pf-row" id="pfGoalsBtn"><span class="pf-ic b">◎</span><span class="pf-t">Goals</span><span class="pf-v" id="pfGoalV"></span><span class="pf-ch">›</span></button>
     </div>
-  
-    <div class="card">
-        <p class="lbl">Goals (take-home)</p>
-        <div class="grid2"><label class="field"><span>Weekly goal $</span><input type="text" inputmode="decimal" id="gWeek" placeholder="Not set"></label><label class="field"><span>Monthly goal $</span><input type="text" inputmode="decimal" id="gMonth" placeholder="Not set"></label></div>
-        <div id="goalBars"></div>
-      </div>
-    <div class="card"><p class="lbl">App icon</p><div class="iconpick" id="iconPick"><button type="button" data-icon="green" aria-pressed="true"><img src="icon-192.png" alt=""><span>Green</span></button><button type="button" data-icon="dark" aria-pressed="false"><img src="icon-192-dark.png" alt=""><span>Dark</span></button></div><p class="muted s">On iPhone, the home screen icon updates after you remove the app and Add to Home Screen again.</p></div>
-    <div class="card install"><p class="lbl">Install</p><p>On iPhone: Share → Add to Home Screen for a full-screen app feel.</p></div>
+    <p class="lbl sec">Appearance</p>
+    <div class="pf-grp">
+      <div class="pf-row"><span class="pf-ic p">☾</span><span class="pf-t">Dark mode</span><label class="switch"><input type="checkbox" id="darkToggle" checked aria-label="Dark mode"><i></i></label></div>
+      <div class="pf-row pf-icrow"><span class="pf-ic o">▣</span><span class="pf-t">App icon</span><div class="iconpick" id="iconPick"><button type="button" data-icon="green" aria-pressed="true" aria-label="Green icon"><img src="icon-192.png" alt=""></button><button type="button" data-icon="dark" aria-pressed="false" aria-label="Dark icon"><img src="icon-192-dark.png" alt=""></button></div></div>
+    </div>
+    <p class="muted xs pf-note">On iPhone, the home screen icon updates after you remove the app and Add to Home Screen again.</p>
+    <p class="lbl sec">Data</p>
+    <div class="pf-grp">
+      <button type="button" class="pf-row" id="csvBtn"><span class="pf-ic g">⇩</span><span class="pf-t">Export CSV</span><span class="pf-ch">›</span></button>
+      <button type="button" class="pf-row pf-signed" id="acSync"><span class="pf-ic b">⟳</span><span class="pf-t">Sync now</span><span class="pf-ch">›</span></button>
+      <button type="button" class="pf-row" id="pfMoreBtn"><span class="pf-ic n">•••</span><span class="pf-t">More</span><span class="pf-v">Milestones, backup</span><span class="pf-ch">›</span></button>
+    </div>
+    <div class="pf-grp pf-signed"><button type="button" class="pf-row pf-red" id="acOutBtn"><span class="pf-t">Sign out</span></button></div>
+    <p class="muted xs pf-note pf-signed">Signing out keeps your shifts on this phone.</p>
+    <p class="muted xs pf-note" id="privNote">Everything stays on this phone. No accounts, no bank, nothing shared.</p>
+   </div>
+   <div id="pfMore" hidden>
+    <button type="button" class="pf-back" id="pfBack">‹ Profile</button>
+    <h1>More</h1>
+    <p class="lbl sec">Milestones</p>
+    <div id="msWrap"></div>
+    <p class="lbl sec">Backup</p>
+    <div class="pf-grp">
+      <button type="button" class="pf-row" id="backupBtn"><span class="pf-ic g">⇪</span><span class="pf-t">Back up</span><span class="pf-v">Save a file</span><span class="pf-ch">›</span></button>
+      <button type="button" class="pf-row" id="restoreBtn"><span class="pf-ic b">↺</span><span class="pf-t">Restore</span><span class="pf-v">From a file</span><span class="pf-ch">›</span></button>
+    </div>
+    <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    <p class="muted xs pf-note">Backup saves a file of all your app data. Restore adds shifts from a backup file without duplicates.</p>
+    <p class="lbl sec">App</p>
+    <div class="pf-grp">
+      <details class="pf-det install"><summary class="pf-row"><span class="pf-ic o">＋</span><span class="pf-t">Add to Home Screen</span><span class="pf-ch">›</span></summary><p class="muted s">On iPhone: Share → Add to Home Screen for a full-screen app feel.</p></details>
+      <details class="pf-det"><summary class="pf-row"><span class="pf-ic p">⛨</span><span class="pf-t">Privacy</span><span class="pf-ch">›</span></summary><p class="muted s">No bank links, no ads, no trackers. Shifts live on this phone; if you sign in they also sync to your private account that only you can read.</p></details>
+      <div class="pf-row"><span class="pf-ic n">i</span><span class="pf-t">About</span><span class="pf-v" id="pfVer">Side Work · v24</span></div>
+    </div>
+   </div>
+   <div class="pf-sheet" id="pfRoleSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pfRoleH"><div class="pf-sh">
+      <div class="pf-grab"></div><div class="pf-shh"><h2 id="pfRoleH">Roles &amp; base pay</h2><button type="button" class="btn sm primary" data-close>Done</button></div>
+      <div id="roleList"></div>
+      <div class="role-row add"><input type="text" id="newRoleName" maxlength="40" placeholder="New role, e.g. Bartender"><span>$</span><input type="text" inputmode="decimal" id="newRoleWage" placeholder="16.90"><button type="button" class="btn sm" id="addRole">Add</button></div>
+      <p class="muted xs">Each shift saves its role and wage when you log it, so changing a wage never rewrites past shifts.</p>
+   </div></div>
+   <div class="pf-sheet" id="pfGoalSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pfGoalH"><div class="pf-sh">
+      <div class="pf-grab"></div><div class="pf-shh"><h2 id="pfGoalH">Goals (take-home)</h2><button type="button" class="btn sm primary" data-close>Done</button></div>
+      <div class="grid2"><label class="field"><span>Weekly goal $</span><input type="text" inputmode="decimal" id="gWeek" placeholder="Not set"></label><label class="field"><span>Monthly goal $</span><input type="text" inputmode="decimal" id="gMonth" placeholder="Not set"></label></div>
+      <div id="goalBars"></div>
+   </div></div>
   </section>
 </main>
 

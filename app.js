@@ -366,7 +366,7 @@
   /* ---------- navigation ---------- */
   var TAB = { dashboard: 'dashboard', shifts: 'shifts', insights: 'insights', stats: 'insights', profile: 'profile', log: 'shifts', settings: 'profile', tips: 'insights', reports: 'insights' }, ALIAS = { settings: 'profile', tips: 'insights', reports: 'insights', stats: 'insights' }, SUB = { dashboard: 'Performance Overview', shifts: 'Your shifts', log: 'Log a shift', insights: 'Tips & reports', profile: 'Settings & data' }, screen = 'dashboard';
   function go(name, sub) { name = ALIAS[name] || name; if (!document.getElementById('s-' + name)) name = 'dashboard'; screen = name; $('#hdrSub').textContent = SUB[name] || '';
-    $$('.screen').forEach(function (s) { s.hidden = s.id !== 's-' + name; });
+    $$('.screen').forEach(function (s) { s.hidden = s.id !== 's-' + name; }); if ($('#pfMain')) { pfSub(false); $$('.pf-sheet').forEach(function (x) { x.hidden = true; }); }
     $$('#tabbar button').forEach(function (b) { var on = b.getAttribute('data-tab') === TAB[name]; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     if (sub) setSeg('shiftsSeg', sub); if (history.replaceState) history.replaceState(null, '', location.pathname + '#' + name); window.scrollTo(0, 0); }
   function setSeg(id, v) { $$('#' + id + ' button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
@@ -446,7 +446,14 @@
     var cf = $('#celConf'); cf.innerHTML = ''; if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { var c = ['#34D399', '#10B981', '#2DD4BF', '#FBBF24', '#F3F4F6'], s = ''; for (var i = 0; i < 28; i++) s += '<i style="left:' + ((i * 37) % 96 + 2) + '%;background:' + c[i % 5] + ';animation-delay:' + ((i * 53) % 600) + 'ms;--r:' + ((i * 47) % 360) + 'deg"></i>'; cf.innerHTML = s; }
     $('#cel').hidden = false; $('#celDone').focus(); return true; }
   var toastT; function toast(m) { var t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 2600); }
-  function renderAll() { renderMonthPick(); renderBanner(); renderDashboard(); renderHistory(); renderCalendar(); renderTips(); renderReports(); renderInsightsEmpty(); renderMilestones(); }
+  function renderProfile() { if (!$('#pfStats')) return; var a = agg(shifts), m = milestones(shifts, lastBackup()), g = getJSON(K.goals) || {};
+    $('#pfStats').innerHTML = '<div class="pf-st"><b>' + a.n + '</b><small>shift' + (a.n === 1 ? '' : 's') + ' logged</small></div><div class="pf-st g"><b>' + (a.rate == null ? '—' : '$' + a.rate.toFixed(2)) + '</b><small>avg per hour</small></div><div class="pf-st"><b>' + m.cur + '</b><small>week streak</small></div>';
+    $('#pfWageV').textContent = roles.length ? '$' + roles[0].wage.toFixed(2) + '/hr' : '';
+    $('#pfGoalV').textContent = g.month ? money0(g.month) + '/mo' : g.week ? money0(g.week) + '/wk' : 'Not set'; }
+  function pfSub(more) { $('#pfMain').hidden = !!more; $('#pfMore').hidden = !more; window.scrollTo(0, 0); }
+  var pfLast = null;
+  function pfSheet(id, open) { var el = $('#' + id); el.hidden = !open; if (open) { pfLast = document.activeElement; var f = el.querySelector('[data-close]'); if (f) f.focus(); } else if (pfLast && pfLast.focus) pfLast.focus(); }
+  function renderAll() { renderMonthPick(); renderBanner(); renderDashboard(); renderHistory(); renderCalendar(); renderTips(); renderReports(); renderInsightsEmpty(); renderMilestones(); renderProfile(); }
 
   function bind() {
     $('#tabbar').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) go(b.getAttribute('data-tab')); });
@@ -479,7 +486,11 @@
     $('#bannerX').addEventListener('click', function () { var x = sched.find(function (y) { return y.id === $('#logBanner').getAttribute('data-sid'); }); if (x) { x.dismissed = true; saveSched(); } renderBanner(); });
     $('#wkPrev').addEventListener('click', function () { wkStart = addDays(wkStart, -7); renderReports(); }); $('#wkNext').addEventListener('click', function () { wkStart = addDays(wkStart, 7); renderReports(); });
     ['#gWeek', '#gMonth'].forEach(function (s) { $(s).addEventListener('change', function () { var v = num(this.value), g = getJSON(K.goals) || {}; if (v != null && (isNaN(v) || v < 0)) { toast('Goal should be a number'); this.value = ''; return; }
-      g[s === '#gWeek' ? 'week' : 'month'] = v ? r2(v) : null; setJSON(K.goals, g); renderReports(); }); });
+      g[s === '#gWeek' ? 'week' : 'month'] = v ? r2(v) : null; setJSON(K.goals, g); renderReports(); renderProfile(); }); });
+    $('#pfMoreBtn').addEventListener('click', function () { pfSub(true); }); $('#pfBack').addEventListener('click', function () { pfSub(false); });
+    $('#pfRolesBtn').addEventListener('click', function () { pfSheet('pfRoleSheet', true); }); $('#pfGoalsBtn').addEventListener('click', function () { pfSheet('pfGoalSheet', true); });
+    $$('.pf-sheet').forEach(function (sh) { sh.addEventListener('click', function (e) { if (e.target === sh || e.target.closest('[data-close]')) { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); pfSheet(sh.id, false); } }); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') $$('.pf-sheet').forEach(function (sh) { if (!sh.hidden) pfSheet(sh.id, false); }); });
     $('#csvBtn').addEventListener('click', exportCSV); $('#repCsv').addEventListener('click', exportCSV);
     $('#msWrap').addEventListener('click', function (e) { if (e.target.closest('#msMore')) { msOpen = !msOpen; renderMilestones(); } });
     $('#delShift').addEventListener('click', deleteEditing);

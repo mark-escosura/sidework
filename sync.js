@@ -108,6 +108,8 @@
     $('#acctCard').hidden = false;
     $('#acctOut').hidden = !!user; $('#acctIn').hidden = !user;
     if (user) $('#acWho').textContent = user.email || '';
+    var sp = $('#s-profile'); if (sp) { sp.classList.add('acct'); sp.classList.toggle('signed', !!user); }
+    if (user && $('#pfAv')) { var lp = String(user.email || '').split('@')[0], parts = lp.split(/[._\-+]+/).filter(Boolean); $('#pfName').textContent = parts.length ? parts.map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ').slice(0, 40) : 'Your account'; $('#pfAv').textContent = ((parts[0] || '?').charAt(0) + (parts[1] ? parts[1].charAt(0) : '')).toUpperCase(); }
     var pn = $('#privNote'); if (pn) pn.textContent = user ? 'Signed in: your shifts are saved on this phone and synced to your account. No bank, nothing shared.' : 'Everything stays on this phone unless you sign in. No bank, nothing shared.';
   }
   function afterIn(email, title) {
@@ -222,5 +224,5 @@
   if (A && !localStorage.getItem(SKIP) && !hasSessKey()) view('signin');
   window.SideWorkSync = { changed: changed, sync: sync, open: function (v) { openAuth(v); } };
   if (window.supabase && window.supabase.createClient) start();
-  else { var t = document.createElement('script'); t.src = CDN; t.onload = start; t.onerror = function () { closeAuth(); $('#acctCard').hidden = false; $('#acOpen').hidden = true; msg('Account sign-in could not load. Your shifts are safe on this phone.'); }; document.head.appendChild(t); }
+  else { var t = document.createElement('script'); t.src = CDN; t.onload = start; t.onerror = function () { closeAuth(); $('#acctCard').hidden = false; if ($('#s-profile')) $('#s-profile').classList.add('acct'); $('#acOpen').hidden = true; msg('Account sign-in could not load. Your shifts are safe on this phone.'); }; document.head.appendChild(t); }
 })();
