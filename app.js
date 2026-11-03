@@ -57,7 +57,7 @@
   function loadShifts() { var a = getJSON(K.shifts), first = !Array.isArray(a); if (first) a = getJSON(OLD.shifts);
     var out = (Array.isArray(a) ? a : []).map(migrate).filter(Boolean); setJSON(K.shifts, out); return out; }
   var shifts = loadShifts();
-  function save() { setJSON(K.shifts, shifts); }
+  function save() { setJSON(K.shifts, shifts); if (window.SideWorkSync) window.SideWorkSync.changed(); }
   function tipsOf(s) { return typeof s.tips === 'number' ? s.tips : null; }
   function splitKnown(s) { return s.cash != null || s.card != null; }
   function wages(s) { return s.hours * (okWage(s.wage) ? s.wage : roles[0].wage); }
@@ -502,5 +502,8 @@
     var h = (location.hash || '').slice(1); if (prefillFromLink()) { renderAll(); go('log'); } else go(TAB[h] ? h : 'dashboard');
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {}); }
   window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
+  /* Optional cloud sync bridge (sync.js). Never writes unless sync.js is configured and signed in. */
+  window.SideWork = { key: K.shifts, normalize: migrate, get: function () { return shifts.slice(); },
+    set: function (list) { shifts = list.map(migrate).filter(Boolean); setJSON(K.shifts, shifts); renderAll(); }, toast: function (m) { toast(m); } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
