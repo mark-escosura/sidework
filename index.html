@@ -158,14 +158,7 @@
       <p class="lbl">Account &amp; sync</p>
       <div id="acctOut">
         <p class="muted xs" style="margin-top:0">Optional. Sign in to back up shifts to your account and sync across devices. The app works the same without it.</p>
-        <label class="field"><span>Email</span><input type="email" id="acEmail" autocomplete="email" autocapitalize="off" inputmode="email" placeholder="you@email.com"></label>
-        <label class="field"><span>Password</span><input type="password" id="acPass" autocomplete="current-password" placeholder="At least 6 characters"></label>
-        <div class="bkrow"><button type="button" class="btn primary wide" id="acIn">Sign in</button><button type="button" class="btn wide" id="acUp">Create account</button></div>
-        <button type="button" class="btn ghost wide sm" id="acForgot">Forgot password?</button>
-      </div>
-      <div id="acctNewPw" hidden>
-        <label class="field"><span>New password</span><input type="password" id="acNewPass" autocomplete="new-password" placeholder="At least 6 characters"></label>
-        <button type="button" class="btn primary wide" id="acSetPw">Save new password</button>
+        <button type="button" class="btn primary wide" id="acOpen">Sign in or create account</button>
       </div>
       <div id="acctIn" hidden>
         <div class="setrow"><span>Signed in as</span><b id="acWho"></b></div>
@@ -201,6 +194,67 @@
   <button data-tab="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1-4 4-6 7.5-6s6.5 2 7.5 6"/></svg><span>Profile</span></button>
 </nav>
 <div class="cel" id="cel" hidden><div class="cel-conf" id="celConf" aria-hidden="true"></div><div class="cel-sheet" role="dialog" aria-modal="true" aria-labelledby="celT"><div class="cel-ic" id="celIc" aria-hidden="true">🏆</div><h3 id="celT"></h3><p id="celSub"></p><div class="cel-chips" id="celChips"></div><button type="button" class="btn primary wide" id="celDone">Done</button></div></div>
+<div class="auth" id="auth" hidden>
+ <div class="au-v" data-v="signin">
+  <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Welcome back</h1><p class="au-sub">Sign in to sync your tips across devices.</p></div>
+  <form class="au-card" id="auFormIn" novalidate>
+   <div class="au-alert" id="inErr" role="alert" hidden></div>
+   <p class="au-note" id="inNote" role="status" hidden></p>
+   <div class="au-f"><label for="acEmail">Email</label><input class="au-in" type="email" id="acEmail" autocomplete="email" autocapitalize="off" inputmode="email" placeholder="you@email.com"></div>
+   <div class="au-f"><label for="acPass">Password</label><div class="au-pw"><input class="au-in" type="password" id="acPass" autocomplete="current-password"><button type="button" class="au-show" data-show="acPass" aria-label="Show password">Show</button></div><p class="au-ferr" id="inPwErr" hidden>Check your password and try again.</p></div>
+   <div class="au-row"><button type="button" class="au-link" id="acForgot">Forgot password?</button></div>
+   <button type="submit" class="au-btn" id="acIn">Sign in</button>
+  </form>
+  <p class="au-switch">New to Side Work? <button type="button" class="au-link" data-go="signup">Create account</button></p>
+  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+ </div>
+ <div class="au-v" data-v="signup" hidden>
+  <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Create your account</h1><p class="au-sub">Back up your shifts and use Side Work on any device.</p></div>
+  <form class="au-card" id="auFormUp" novalidate>
+   <div class="au-alert" id="upErr" role="alert" hidden></div>
+   <div class="au-f"><label for="upEmail">Email</label><input class="au-in" type="email" id="upEmail" autocomplete="email" autocapitalize="off" inputmode="email" placeholder="you@email.com"></div>
+   <div class="au-f"><label for="upPass">Password</label><div class="au-pw"><input class="au-in" type="password" id="upPass" autocomplete="new-password"><button type="button" class="au-show" data-show="upPass" aria-label="Show password">Show</button></div><div class="au-meter" id="upMeter"><i></i><i></i><i></i><i></i></div><p class="au-hint" id="upHint">At least 8 characters</p></div>
+   <div class="au-f"><label for="upPass2">Confirm password</label><div class="au-pw"><input class="au-in" type="password" id="upPass2" autocomplete="new-password"><button type="button" class="au-show" data-show="upPass2" aria-label="Show password">Show</button></div></div>
+   <button type="submit" class="au-btn" id="acUp">Create account</button>
+  </form>
+  <p class="au-switch">Already have an account? <button type="button" class="au-link" data-go="signin">Sign in</button></p>
+  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+ </div>
+ <div class="au-v" data-v="check" hidden>
+  <div class="au-center"><div class="au-mail"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg></div><h1>Check your email</h1><p class="au-sub">We sent a confirmation link to<br><b id="ckEmail"></b>. Tap it to finish creating your account, then sign in.</p></div>
+  <div class="au-stack"><button type="button" class="au-btn" data-go="signin">Back to sign in</button><button type="button" class="au-ghost" id="ckResend">Resend email</button></div>
+  <p class="au-note" id="ckNote" role="status" hidden></p>
+  <p class="au-switch">Wrong address? <button type="button" class="au-link" data-go="signup">Change email</button></p>
+  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+ </div>
+ <div class="au-v" data-v="forgot" hidden>
+  <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Reset password</h1><p class="au-sub">We’ll email you a link to choose a new password.</p></div>
+  <form class="au-card" id="auFormFg" novalidate>
+   <div class="au-alert" id="fgErr" role="alert" hidden></div>
+   <p class="au-note" id="fgNote" role="status" hidden></p>
+   <div class="au-f"><label for="fgEmail">Email</label><input class="au-in" type="email" id="fgEmail" autocomplete="email" autocapitalize="off" inputmode="email" placeholder="you@email.com"></div>
+   <button type="submit" class="au-btn" id="fgSend">Send reset link</button>
+  </form>
+  <p class="au-switch">Remembered it? <button type="button" class="au-link" data-go="signin">Sign in</button></p>
+  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+ </div>
+ <div class="au-v" data-v="newpw" hidden>
+  <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Choose a new password</h1><p class="au-sub">You opened a reset link. Set a new password for your account.</p></div>
+  <form class="au-card" id="acctNewPw" novalidate>
+   <div class="au-alert" id="npErr" role="alert" hidden></div>
+   <div class="au-f"><label for="acNewPass">New password</label><div class="au-pw"><input class="au-in" type="password" id="acNewPass" autocomplete="new-password"><button type="button" class="au-show" data-show="acNewPass" aria-label="Show password">Show</button></div></div>
+   <button type="submit" class="au-btn" id="acSetPw">Save new password</button>
+  </form>
+ </div>
+ <div class="au-v" data-v="busy" hidden>
+  <div class="au-load"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><div class="au-spin" id="bzSpin"></div><h1 id="bzTitle">Signing in…</h1><p class="au-sub" id="bzSub"></p><div class="au-bar" id="bzBarW"><i id="bzBar"></i></div><p class="au-stepn" id="bzN"></p><ul class="au-steps" id="bzSteps"></ul></div>
+  <div class="au-foot"><p class="au-priv" id="bzFoot">Nothing is deleted from this phone.</p></div>
+ </div>
+ <div class="au-v" data-v="welcome" hidden>
+  <div class="au-load"><div class="au-ok"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div><h1 id="wbTitle">Welcome back</h1><p class="au-sub" id="wbSub"></p><p class="au-sub au-sm">Opening Overview…</p></div>
+ </div>
+</div>
+<div class="au-sheetwrap" id="soSheet" hidden><div class="au-dim" data-socancel></div><div class="au-sheet" role="dialog" aria-modal="true" aria-labelledby="soT"><div class="au-sg"><div class="au-sh"><b id="soT">Sign out?</b><p>Your shifts stay on this phone. They’ll stop syncing until you sign in again.</p></div><button type="button" class="au-sa" id="soOk">Sign out</button></div><button type="button" class="au-sc" id="soCancel" data-socancel>Cancel</button></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="config.js"></script>
 <script src="app.js"></script>
