@@ -11,7 +11,7 @@
   function setMeta(m) { localStorage.setItem(META, JSON.stringify(m)); }
   var F = [['id', 'id'], ['date', 'date'], ['shift', 'shift'], ['hours', 'hours'], ['role', 'role'], ['wage', 'wage'], ['clockIn', 'clock_in'], ['clockOut', 'clock_out'],
     ['cash', 'cash'], ['card', 'card'], ['tips', 'tips'], ['tipout', 'tipout'], ['sales', 'sales'], ['note', 'note'], ['createdAt', 'created_at']];
-  function toRow(s) { var r = { user_id: user.id, deleted: false, updated_at: new Date().toISOString() }; F.forEach(function (f) { r[f[1]] = s[f[0]] == null ? null : s[f[0]]; }); return r; }
+  function toRow(s) { var r = { user_id: user.id, deleted: false, updated_at: new Date().toISOString() }; F.forEach(function (f) { r[f[1]] = s[f[0]] == null ? null : s[f[0]]; }); if (typeof r.note === 'string') r.note = r.note.slice(0, 2000); if (typeof r.role === 'string') r.role = r.role.slice(0, 60); return r; }
   function fromRow(r) { var s = {}; F.forEach(function (f) { s[f[0]] = r[f[1]]; }); s.hours = +s.hours; ['wage', 'cash', 'card', 'tips', 'tipout', 'sales'].forEach(function (k) { if (s[k] != null) s[k] = +s[k]; }); return SW.normalize(s); }
   function sig(s) { var o = {}; F.forEach(function (f) { o[f[0]] = s[f[0]] == null ? null : s[f[0]]; }); return JSON.stringify(o); }
   function k2(s) { return s.date + '|' + (s.clockIn || ''); }
