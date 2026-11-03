@@ -4,7 +4,7 @@
   'use strict';
   var C = window.SIDEWORK_CONFIG || {}, URL_ = (C.SUPABASE_URL || '').trim(), KEY = (C.SUPABASE_ANON_KEY || '').trim();
   if (!URL_ || !KEY || !window.SideWork) return;
-  var SW = window.SideWork, META = 'sidework.sync', CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+  var SW = window.SideWork, META = 'sidework.sync', CDN = 'vendor/supabase.js';
   var $ = function (s) { return document.querySelector(s); };
   var sb = null, user = null, busy = false, again = false, timer = null, applying = false;
   function meta() { try { return JSON.parse(localStorage.getItem(META)) || {}; } catch (e) { return {}; } }
@@ -97,5 +97,5 @@
   }
   window.SideWorkSync = { changed: changed, sync: sync };
   if (window.supabase && window.supabase.createClient) start();
-  else { var t = document.createElement('script'); t.src = CDN; t.onload = start; t.onerror = function () { $('#acctCard').hidden = false; msg('Account sign-in needs internet. Your shifts are safe on this phone.'); }; document.head.appendChild(t); }
+  else { var t = document.createElement('script'); t.src = CDN; t.onload = start; t.onerror = function () { $('#acctCard').hidden = false; msg('Account sign-in could not load. Your shifts are safe on this phone.'); }; document.head.appendChild(t); }
 })();
