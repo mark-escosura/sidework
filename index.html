@@ -118,27 +118,39 @@
 
   <!-- INSIGHTS -->
   <section class="screen" id="s-insights" hidden>
-    <div class="h1row"><h1>Insights</h1><label class="sr" for="monthPick">Month</label><select id="monthPick" class="mpick"></select></div>
+    <div class="h1row"><h1>Insights</h1></div>
     <div id="iEmpty" class="emptyB" hidden><span class="eb-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20v-5M10 20v-8M15 20v-6M20 20V9M4 12l5-4 4 3 7-6M16 5h4v4"/></svg></span><h2>No insights yet</h2><p class="ea-sub">Log a few shifts to see your hourly rate, cash vs card breakdown, and weekly totals.</p><div class="card eb-chart" aria-hidden="true" data-placeholder="1"><svg viewBox="0 0 310 136"><g class="eb-grid"><line x1="36" x2="300" y1="20" y2="20"/><text x="4" y="24">$40</text><line x1="36" x2="300" y1="42" y2="42"/><text x="4" y="46">$30</text><line x1="36" x2="300" y1="64" y2="64"/><text x="4" y="68">$20</text><line x1="36" x2="300" y1="86" y2="86"/><text x="4" y="90">$10</text><line x1="36" x2="300" y1="108" y2="108"/><text x="4" y="112">$0</text></g><polyline class="eb-line" points="44,70 86,58 128,42 170,82 212,42 254,86 296,62"/><g class="eb-dots"><circle cx="44" cy="70" r="4"/><circle cx="86" cy="58" r="4"/><circle cx="128" cy="42" r="4"/><circle cx="170" cy="82" r="4"/><circle cx="212" cy="42" r="4"/><circle cx="254" cy="86" r="4"/><circle cx="296" cy="62" r="4"/></g><g class="eb-x"><text x="44" y="128" text-anchor="middle">Mon</text><text x="86" y="128" text-anchor="middle">Tue</text><text x="128" y="128" text-anchor="middle">Wed</text><text x="170" y="128" text-anchor="middle">Thu</text><text x="212" y="128" text-anchor="middle">Fri</text><text x="254" y="128" text-anchor="middle">Sat</text><text x="296" y="128" text-anchor="middle">Sun</text></g></svg></div><div class="card eb-donut" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="34" fill="none" stroke="#3a3d44" stroke-width="22"/><circle cx="50" cy="50" r="34" fill="none" stroke="#5b5f67" stroke-width="22" stroke-dasharray="80 214" transform="rotate(-90 50 50)"/></svg><div class="eb-leg"><i></i><i></i><i></i></div></div><button type="button" class="btn eb-btn" data-go="log"><span class="pl">+</span> Log Shift</button></div>
-    <div class="segtabs" id="repSeg"><button data-v="tips" class="on">Tips</button><button data-v="week">Weekly</button><button data-v="stats">All time</button></div>
-    <div id="rTips"><p class="sub" id="tRange"></p><div id="tEmpty" class="card empty" hidden><p class="big">No tips logged this month</p><p class="muted">Cash and card tips you log show up here.</p></div>
-    <div id="tBody">
-      <div class="card"><div class="kpis" id="tKpis"></div></div>
-      <div class="card"><p class="lbl">Tips by day</p><div id="tDays"></div></div>
-      <div class="card"><p class="lbl">Average take-home by day and shift</p><div id="dayGrid" class="gridwrap"></div></div>
+    <div id="iMain">
+      <div class="segtabs" id="repSeg"><button type="button" data-v="week" class="on">Week</button><button type="button" data-v="month">Month</button><button type="button" data-v="all">All time</button></div>
+      <div class="card in-hero"><p class="in-rng" id="iRange"></p><p class="in-big" id="iTake"></p><p class="in-delta" id="iDelta"></p><div class="in-bars" id="iBars"></div></div>
+      <div class="pf-stats" id="iTiles"></div>
+      <p class="lbl sec">Best times to work</p>
+      <div class="pf-grp" id="iBest"></div>
+      <p class="lbl sec">Tips</p>
+      <div class="card in-tips" id="tKpis"></div>
+      <p class="lbl sec">More</p>
+      <div class="pf-grp">
+        <button type="button" class="pf-row" id="iGridBtn"><span class="pf-ic g">▦</span><span class="pf-t">Day &amp; shift breakdown<small>Average take-home for every day and shift</small></span><span class="pf-ch">›</span></button>
+        <button type="button" class="pf-row" id="iBestBtn"><span class="pf-ic b">★</span><span class="pf-t">Best shifts &amp; all-time totals<small>Top 5 shifts, lifetime $/hr</small></span><span class="pf-ch">›</span></button>
+        <button type="button" class="pf-row" id="repCsv"><span class="pf-ic o">⇩</span><span class="pf-t">Export CSV<small>All shifts, for taxes or spreadsheets</small></span><span class="pf-ch">›</span></button>
+      </div>
+      <p class="muted xs pf-note">Tap a bar to see its shifts.</p>
     </div>
-  </div>
-    <div id="rWeek" hidden>
-      <div class="card"><div class="calhead"><button class="ibtn" id="wkPrev" aria-label="Previous week">‹</button><div><b id="wkTitle"></b><span class="muted s" id="wkSub"></span></div><button class="ibtn" id="wkNext" aria-label="Next week">›</button></div>
-        <div class="kpis" id="wkKpis"></div><div id="wkDays"></div></div>
-    </div>
-    <div id="rStats" hidden>
-      <div class="card"><p class="lbl">All time</p><div class="kpis" id="stAll"></div></div>
+    <div id="iMore" hidden>
+      <button type="button" class="pf-back" id="iBack">‹ Insights</button>
+      <h2 class="in-h">More insights</h2>
+      <p class="lbl sec" id="iGridH">Day &amp; shift · avg take-home</p>
+      <div class="card"><div id="dayGrid" class="gridwrap"></div></div>
+      <p class="lbl sec" id="iBestH">Best shifts</p>
+      <div class="pf-grp"><ol class="bestlist in-bl" id="stBest"></ol></div>
+      <p class="lbl sec">All time</p>
+      <div class="card"><div class="kpis" id="stAll"></div></div>
       <div class="card" id="stRoles"></div>
-      <div class="card"><p class="lbl">Best shifts</p><ol class="bestlist" id="stBest"></ol></div>
     </div>
-    
-    <button class="btn ghost wide" id="repCsv">Export CSV</button>
+    <div class="pf-sheet" id="iSheet" hidden role="dialog" aria-modal="true" aria-labelledby="iShH"><div class="pf-sh">
+      <div class="pf-grab"></div><div class="pf-shh"><h2 id="iShH"></h2><button type="button" class="btn sm primary" data-close>Done</button></div>
+      <div id="iShBody"></div>
+    </div></div>
   </section>
 
   <!-- PROFILE -->
@@ -194,7 +206,7 @@
     <div class="pf-grp">
       <details class="pf-det install"><summary class="pf-row"><span class="pf-ic o">＋</span><span class="pf-t">Add to Home Screen</span><span class="pf-ch">›</span></summary><p class="muted s">On iPhone: Share → Add to Home Screen for a full-screen app feel.</p></details>
       <details class="pf-det"><summary class="pf-row"><span class="pf-ic p">⛨</span><span class="pf-t">Privacy</span><span class="pf-ch">›</span></summary><p class="muted s">No bank links, no ads, no trackers. Shifts live on this phone; if you sign in they also sync to your private account that only you can read.</p></details>
-      <div class="pf-row"><span class="pf-ic n">i</span><span class="pf-t">About</span><span class="pf-v" id="pfVer">Side Work · v24</span></div>
+      <div class="pf-row"><span class="pf-ic n">i</span><span class="pf-t">About</span><span class="pf-v" id="pfVer">Side Work · v25</span></div>
     </div>
    </div>
    <div class="pf-sheet" id="pfRoleSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pfRoleH"><div class="pf-sh">

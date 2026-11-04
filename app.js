@@ -86,7 +86,7 @@
   function prevYm(ym) { var d = new Date(+ym.slice(0, 4), +ym.slice(5) - 2, 1); return iso(d).slice(0, 7); }
   function inMonth(ym) { return shifts.filter(function (s) { return s.date.slice(0, 7) === ym; }); }
   function rangeText(R) { return MON[R.start.getMonth()] + ' 1 – ' + MON[R.through.getMonth()] + ' ' + R.through.getDate() + ', ' + R.start.getFullYear(); }
-  function renderMonthPick() { var now = new Date(), first = shifts.reduce(function (m, s) { return s.date < m ? s.date : m; }, iso(now)).slice(0, 7), opts = [], ym = iso(now).slice(0, 7);
+  function renderMonthPick() { if (!$('#monthPick')) return; var now = new Date(), first = shifts.reduce(function (m, s) { return s.date < m ? s.date : m; }, iso(now)).slice(0, 7), opts = [], ym = iso(now).slice(0, 7);
     var guard = 0; while (ym >= first && guard++ < 120) { opts.push(ym); ym = prevYm(ym); }
     if (opts.indexOf(period) < 0) opts.unshift(period);
     $('#monthPick').innerHTML = opts.map(function (v) { return '<option value="' + v + '"' + (v === period ? ' selected' : '') + '>' + MON[+v.slice(5) - 1] + ' ' + v.slice(0, 4) + '</option>'; }).join(''); }
@@ -265,13 +265,46 @@
   function openFromSched(x) { resetForm(); fillForm({ date: x.date, shift: x.shift, role: x.role, clockIn: x.start, clockOut: x.end, hours: spanHours(x.start, x.end) }); pendingSched = x.id; go('log'); setTimeout(function () { $('#fCash').focus(); }, 60); }
 
   /* ---------- tips ---------- */
-  function renderInsightsEmpty() { var has = !!shifts.length; $('#iEmpty').hidden = has; $$('#s-insights > *').forEach(function (el) { if (el.id !== 'iEmpty' && !el.classList.contains('h1row')) { if (!has) { if (!el.hasAttribute('data-eh')) { el.setAttribute('data-eh', el.hidden ? '1' : '0'); } el.hidden = true; } else if (el.hasAttribute('data-eh')) { el.hidden = el.getAttribute('data-eh') === '1'; el.removeAttribute('data-eh'); } } }); $('#monthPick').hidden = !has; }
-  function renderTips() { var R = monthRange(period), list = inMonth(period), A = agg(list);
-    $('#tRange').textContent = rangeText(R); $('#tEmpty').hidden = !!A.tipN; $('#tBody').hidden = !A.tipN && !shifts.length;
-    $('#tKpis').innerHTML = [['Total tips', money(A.tips), 1], ['Tip $/hr (after tip-out)', rate(A.tipRate), 1], ['Cash', money(A.cash)], ['Card', money(A.card)], ['Tipped out', money(A.tipout)], ['Split unknown', money(A.unknown)]]
-      .map(function (k) { return '<div><p class="k">' + k[0] + '</p><p class="v' + (k[2] ? ' g' : '') + '">' + k[1] + '</p></div>'; }).join('');
-    var by = {}; list.forEach(function (s) { if (tipsOf(s) != null) (by[s.date] = by[s.date] || []).push(s); });
-    $('#tDays').innerHTML = Object.keys(by).sort().reverse().map(function (d) { var a = agg(by[d]); return '<div class="dayrow"><span>' + nice(d) + '</span><span class="muted">' + (a.unknown ? '' : 'cash ' + money0(a.cash) + ' · card ' + money0(a.card)) + '</span><b>' + money(a.tips) + '</b></div>'; }).join('') || '<p class="muted s">No tips this month.</p>';
+  function renderInsightsEmpty() { var has = !!shifts.length; $('#iEmpty').hidden = has; $$('#s-insights > *').forEach(function (el) { if (el.id !== 'iEmpty' && !el.classList.contains('h1row')) { if (!has) { if (!el.hasAttribute('data-eh')) { el.setAttribute('data-eh', el.hidden ? '1' : '0'); } el.hidden = true; } else if (el.hasAttribute('data-eh')) { el.hidden = el.getAttribute('data-eh') === '1'; el.removeAttribute('data-eh'); } } }); }
+  var iMode = 'week', SHN = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', overnight: 'late' };
+  function inRange(a, b) { return shifts.filter(function (s) { return s.date >= a && s.date <= b; }); }
+  function md(d) { return MON[d.getMonth()] + ' ' + d.getDate(); }
+  function insightBars() { var t = new Date(); t = new Date(t.getFullYear(), t.getMonth(), t.getDate()); var B = [], R = {}, ti = iso(t);
+    if (iMode === 'week') { var ws = monday(t), we = addDays(ws, 6); for (var i = 0; i < 7; i++) { var d = iso(addDays(ws, i)); B.push({ a: d, b: d, l: DOW[addDays(ws, i).getDay()].slice(0, 3), t: nice(d) }); }
+      R = { a: iso(ws), b: iso(we), txt: 'This week · ' + md(ws) + ' – ' + md(we), pa: iso(addDays(ws, -7)), pb: iso(addDays(t, -7)), vs: 'last week' }; }
+    else if (iMode === 'month') { var ms = new Date(t.getFullYear(), t.getMonth(), 1), me = new Date(t.getFullYear(), t.getMonth() + 1, 0), w = monday(ms);
+      while (w <= me) { var a0 = w < ms ? ms : w, b0 = addDays(w, 6) > me ? me : addDays(w, 6); B.push({ a: iso(a0), b: iso(b0), l: md(a0), t: md(a0) + ' – ' + md(b0) }); w = addDays(w, 7); }
+      var pms = new Date(t.getFullYear(), t.getMonth() - 1, 1), pme = new Date(t.getFullYear(), t.getMonth(), 0), pd = new Date(pms.getFullYear(), pms.getMonth(), Math.min(t.getDate(), pme.getDate()));
+      R = { a: iso(ms), b: iso(me), txt: MONL[t.getMonth()] + ' ' + t.getFullYear(), pa: iso(pms), pb: iso(pd), vs: 'last month' }; }
+    else { var first = shifts.reduce(function (m, s) { return s.date < m ? s.date : m; }, ti), f = fromIso(first), n = Math.min(6, (t.getFullYear() - f.getFullYear()) * 12 + t.getMonth() - f.getMonth() + 1);
+      for (var k = n - 1; k >= 0; k--) { var s0 = new Date(t.getFullYear(), t.getMonth() - k, 1), e0 = new Date(t.getFullYear(), t.getMonth() - k + 1, 0); B.push({ a: iso(s0), b: iso(e0), l: MON[s0.getMonth()], t: MONL[s0.getMonth()] + ' ' + s0.getFullYear() }); }
+      R = { a: '0000-01-01', b: '9999-12-31', txt: 'All time · since ' + nice(first) }; }
+    B.forEach(function (x) { x.A = agg(inRange(x.a, x.b)); x.future = x.a > ti; }); return { B: B, R: R, ti: ti }; }
+  function tipsHTML(A) { var tot = A.cash + A.card + A.unknown, pc = tot > 0 ? A.cash / tot * 100 : 0, pk = tot > 0 ? A.card / tot * 100 : 0, pu = tot > 0 ? 100 - pc - pk : 0;
+    return '<div class="in-lg"><span>Total tips</span><b>' + money(A.tips) + '</b></div><div class="in-split" aria-hidden="true"><i class="c1" style="width:' + pc.toFixed(1) + '%"></i><i class="c2" style="width:' + pk.toFixed(1) + '%"></i><i class="c3" style="width:' + pu.toFixed(1) + '%"></i></div>' +
+      '<div class="in-lg"><span><b class="d1">●</b> Cash ' + money(A.cash) + '</span><span><b class="d2">●</b> Card ' + money(A.card) + '</span></div>' + (A.unknown ? '<div class="in-lg"><span><b class="d3">●</b> Split unknown</span><b>' + money(A.unknown) + '</b></div>' : '') +
+      '<div class="in-lg"><span>Tipped out</span><b>' + money(A.tipout) + '</b></div><div class="in-lg"><span>Tip $/hr (after tip-out)</span><b class="g">' + rate(A.tipRate) + '</b></div>'; }
+  function openRange(a, b, title) { var L = inRange(a, b).sort(function (x, y) { return x.date < y.date ? -1 : 1; }), A = agg(L);
+    $('#iShH').textContent = title;
+    $('#iShBody').innerHTML = '<p class="in-big c">' + money(A.take) + '<small> take-home</small></p><p class="muted s c">' + A.n + ' shift' + (A.n === 1 ? '' : 's') + ' · ' + r2(A.hours) + 'h · ' + rate(A.rate) + '</p>' +
+      '<div class="pf-grp">' + L.slice(0, 40).map(function (x) { return '<div class="pf-row"><span class="pf-t">' + (a === b ? '' : esc(nice(x.date)) + ' · ') + esc(cap(x.shift === 'overnight' ? 'late' : x.shift)) + ' · ' + esc(x.role) + '<small>' + (x.clockIn && x.clockOut ? esc(x.clockIn) + '–' + esc(x.clockOut) + ' · ' : '') + x.hours + 'h · wages ' + money(wages(x)) + '</small></span><b class="in-amt">' + money(take(x)) + '</b></div>'; }).join('') + '</div>' +
+      '<div class="card in-tips" style="margin-top:12px">' + tipsHTML(A) + '</div>';
+    pfSheet('iSheet', true); }
+  function iSub(more, focusId) { $('#iMain').hidden = !!more; $('#iMore').hidden = !more; if (more && focusId) { var e = $('#' + focusId); window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 80); } else window.scrollTo(0, 0); }
+  function renderTips() { if (!$('#iBars')) return; var I = insightBars(), R = I.R, list = inRange(R.a, R.b), A = agg(list);
+    $('#iRange').textContent = R.txt; $('#iTake').textContent = money(A.take);
+    var dl = $('#iDelta'); if (R.vs) { var cur = agg(inRange(R.a, I.ti)), prev = agg(inRange(R.pa, R.pb));
+      if (!prev.n) { dl.className = 'in-delta muted'; dl.textContent = 'Nothing logged ' + R.vs + ' to compare'; }
+      else { var df = cur.take - prev.take; dl.className = 'in-delta ' + (df >= 0 ? 'up' : 'dn'); dl.textContent = (df >= 0 ? '▲ ' : '▼ ') + money0(Math.abs(df)) + ' vs ' + R.vs + ' at this point'; } }
+    else { dl.className = 'in-delta muted'; dl.textContent = A.n + ' shift' + (A.n === 1 ? '' : 's') + ' · ' + r2(A.hours) + 'h'; }
+    var mx = I.B.reduce(function (m, x) { return Math.max(m, x.A.take); }, 0);
+    $('#iBars').innerHTML = I.B.map(function (x) { var v = x.A.take, on = mx > 0 && v === mx; return '<button type="button" class="in-bar' + (on ? ' hi' : '') + '" data-a="' + x.a + '" data-b="' + x.b + '" data-t="' + esc(x.t) + '" aria-label="' + esc(x.t) + ': ' + (x.A.n ? money(v) : 'no shifts') + '"' + (x.A.n ? '' : ' disabled') + '><span>' + (x.A.n ? money0(v) : x.future ? '' : 'off') + '</span><i style="height:' + (mx > 0 && x.A.n ? Math.max(6, v / mx * 76) : 4).toFixed(0) + 'px"></i>' + esc(x.l) + '</button>'; }).join('');
+    $('#iTiles').innerHTML = '<div class="pf-st g"><b>' + (A.rate == null ? '—' : '$' + A.rate.toFixed(2)) + '</b><small>avg per hour</small></div><div class="pf-st"><b>' + r2(A.hours) + 'h</b><small>hours</small></div><div class="pf-st"><b>' + A.n + '</b><small>shift' + (A.n === 1 ? '' : 's') + '</small></div>';
+    var G = {}; shifts.forEach(function (s) { if (!(s.hours > 0)) return; var k = ((fromIso(s.date).getDay() + 6) % 7) + '|' + s.shift; (G[k] = G[k] || []).push(s); });
+    var DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], bt = Object.keys(G).map(function (k) { var a = agg(G[k]), p = k.split('|'); return { n: DN[+p[0]] + ' ' + (SHN[p[1]] || p[1]), a: a }; }).filter(function (x) { return x.a.rate != null; }).sort(function (x, y) { return y.a.rate - x.a.rate; }).slice(0, 3);
+    var top = bt.length ? bt[0].a.rate : 1;
+    $('#iBest').innerHTML = bt.length ? bt.map(function (x, i) { return '<div class="in-bt"><span class="in-rk">' + (i + 1) + '</span><div class="pf-t">' + esc(x.n) + '<small>' + money0(x.a.take / x.a.n) + ' avg · ' + x.a.n + ' shift' + (x.a.n === 1 ? '' : 's') + '</small><div class="in-meter"><i style="width:' + (x.a.rate / top * 100).toFixed(0) + '%"></i></div></div><b class="in-amt">' + rate(x.a.rate) + '</b></div>'; }).join('') + '<p class="muted xs in-bnote">All time, by average take-home per hour.</p>' : '<p class="muted s in-bnote">Log shifts to see your best days and shifts.</p>';
+    $('#tKpis').innerHTML = tipsHTML(A);
     var G = {}; shifts.forEach(function (s) { var k = ((fromIso(s.date).getDay() + 6) % 7) + s.shift; (G[k] = G[k] || []).push(s); });
     $('#dayGrid').innerHTML = shifts.length ? '<table class="dg"><thead><tr><th></th>' + SHIFTS.map(function (s) { return '<th>' + ({ breakfast: 'Bkfst', lunch: 'Lunch', dinner: 'Dinner', overnight: 'Late' }[s] || cap(s)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (dn, i) { return '<tr><th>' + dn + '</th>' + SHIFTS.map(function (sh) { var g = G[i + sh]; if (!g) return '<td class="none">·</td>'; var a = agg(g);
@@ -281,16 +314,11 @@
   var wkStart = monday(new Date());
   function kp(k, v, g) { return '<div><p class="k">' + k + '</p><p class="v' + (g ? ' g' : '') + '">' + v + '</p></div>'; }
   function renderReports() {
-    var s0 = iso(wkStart), e0 = iso(addDays(wkStart, 6)), wl = shifts.filter(function (s) { return s.date >= s0 && s.date <= e0; }), W = agg(wl);
-    var p0 = iso(addDays(wkStart, -7)), pe = iso(addDays(wkStart, -1)), PW = agg(shifts.filter(function (s) { return s.date >= p0 && s.date <= pe; }));
-    $('#wkTitle').textContent = 'Week of ' + nice(s0); $('#wkSub').textContent = MON[wkStart.getMonth()] + ' ' + wkStart.getDate() + ' – ' + MON[addDays(wkStart, 6).getMonth()] + ' ' + addDays(wkStart, 6).getDate();
-    $('#wkKpis').innerHTML = W.n ? kp('Take-home', money(W.take), 1) + kp('vs last week', PW.n ? deltaHTML(pct(W.take, PW.take)) : '—') + kp('Hours · shifts', r2(W.hours) + 'h · ' + W.n) + kp('Effective rate', rate(W.rate), 1) + kp('Cash tips', money(W.cash)) + kp('Card tips', money(W.card)) : '<p class="muted s">No shifts this week.</p>';
-    $('#wkDays').innerHTML = W.n ? [0, 1, 2, 3, 4, 5, 6].map(function (i) { var d = iso(addDays(wkStart, i)), a = agg(wl.filter(function (s) { return s.date === d; })); return a.n ? '<div class="dayrow"><span>' + nice(d) + '</span><span class="muted">' + r2(a.hours) + 'h · ' + rate(a.rate) + '</span><b>' + money(a.take) + '</b></div>' : ''; }).join('') : '';
     var A = agg(shifts); $('#stAll').innerHTML = A.n ? kp('Take-home', money(A.take), 1) + kp('Effective rate', rate(A.rate), 1) + kp('Shifts · hours', A.n + ' · ' + r2(A.hours) + 'h') + kp('Tips', money(A.tips)) + kp('Wages', money(A.wages)) + kp('Tip $/hr', rate(A.tipRate)) : '<p class="muted s">No shifts yet.</p>';
     var br = {}; shifts.forEach(function (s) { (br[s.role] = br[s.role] || []).push(s); }); var ks = Object.keys(br);
     $('#stRoles').hidden = ks.length < 2; $('#stRoles').innerHTML = '<p class="lbl">By role</p>' + ks.map(function (k) { var a = agg(br[k]); return '<div class="dayrow"><span>' + esc(k) + '</span><span class="muted">' + r2(a.hours) + 'h · ' + rate(a.rate) + '</span><b>' + money(a.take) + '</b></div>'; }).join('');
     var best = shifts.map(function (s) { return { s: s, r: take(s) / s.hours }; }).sort(function (a, b) { return b.r - a.r; }).slice(0, 5);
-    $('#stBest').innerHTML = best.length ? best.map(function (x) { return '<li>' + nice(x.s.date) + ' · ' + cap(x.s.shift) + ' <b>' + rate(x.r) + '</b><div class="xs">' + money(take(x.s)) + ' in ' + x.s.hours + 'h</div></li>'; }).join('') : '<li class="muted">Log a shift to see your best ones.</li>';
+    $('#stBest').innerHTML = best.length ? best.map(function (x) { return '<li>' + nice(x.s.date) + ' · ' + esc(cap(x.s.shift === 'overnight' ? 'late' : x.s.shift)) + ' <b>' + rate(x.r) + '</b><div class="xs">' + money(take(x.s)) + ' in ' + x.s.hours + 'h</div></li>'; }).join('') : '<li class="muted">Log a shift to see your best ones.</li>';
     var g = getJSON(K.goals) || {}; if (document.activeElement !== $('#gWeek')) $('#gWeek').value = g.week || ''; if (document.activeElement !== $('#gMonth')) $('#gMonth').value = g.month || '';
     var tw = monday(new Date()), cw = agg(shifts.filter(function (s) { return s.date >= iso(tw) && s.date <= iso(addDays(tw, 6)); })).take, cm = agg(inMonth(iso(new Date()).slice(0, 7))).take;
     function bar(lbl, have, goal) { return goal ? '<div class="gbar"><div class="dayrow" style="border:0;padding:0"><span>' + lbl + '</span><span class="muted">' + money0(have) + ' of ' + money0(goal) + '</span><b>' + Math.round(have / goal * 100) + '%</b></div><div class="tr"><i style="width:' + Math.min(100, have / goal * 100).toFixed(1) + '%"></i></div></div>' : ''; }
@@ -366,12 +394,12 @@
   /* ---------- navigation ---------- */
   var TAB = { dashboard: 'dashboard', shifts: 'shifts', insights: 'insights', stats: 'insights', profile: 'profile', log: 'shifts', settings: 'profile', tips: 'insights', reports: 'insights' }, ALIAS = { settings: 'profile', tips: 'insights', reports: 'insights', stats: 'insights' }, SUB = { dashboard: 'Performance Overview', shifts: 'Your shifts', log: 'Log a shift', insights: 'Tips & reports', profile: 'Settings & data' }, screen = 'dashboard';
   function go(name, sub) { name = ALIAS[name] || name; if (!document.getElementById('s-' + name)) name = 'dashboard'; screen = name; $('#hdrSub').textContent = SUB[name] || '';
-    $$('.screen').forEach(function (s) { s.hidden = s.id !== 's-' + name; }); if ($('#pfMain')) { pfSub(false); $$('.pf-sheet').forEach(function (x) { x.hidden = true; }); }
+    $$('.screen').forEach(function (s) { s.hidden = s.id !== 's-' + name; }); if ($('#iMain') && !$('#iMain').hasAttribute('data-eh')) { $('#iMain').hidden = false; $('#iMore').hidden = true; } if ($('#iSheet')) $('#iSheet').hidden = true; if ($('#pfMain')) { pfSub(false); $$('.pf-sheet').forEach(function (x) { x.hidden = true; }); }
     $$('#tabbar button').forEach(function (b) { var on = b.getAttribute('data-tab') === TAB[name]; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     if (sub) setSeg('shiftsSeg', sub); if (history.replaceState) history.replaceState(null, '', location.pathname + '#' + name); window.scrollTo(0, 0); }
   function setSeg(id, v) { $$('#' + id + ' button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
     if (id === 'shiftsSeg') { $('#vList').hidden = v !== 'list'; $('#vCal').hidden = v !== 'cal'; }
-    else { $('#rTips').hidden = v !== 'tips'; $('#rWeek').hidden = v !== 'week'; $('#rStats').hidden = v !== 'stats'; } }
+ }
   /* ---------- backup / restore (on-device only) ---------- */
   function backupData() { var d = {}; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf('serverlife.') === 0) { var v = localStorage.getItem(k); try { d[k] = JSON.parse(v); } catch (e) { d[k] = v; } } }
     return { app: 'Side Work', format: 1, exportedAt: new Date().toISOString(), data: d }; }
@@ -462,9 +490,11 @@
     $('#themeBtn').addEventListener('click', function () { var t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; localStorage.setItem(K.theme, t); applyTheme(t); });
     $('#dChart').addEventListener('pointerdown', chartPoint); $('#dChart').addEventListener('pointermove', chartPoint);
     $('#dBody').addEventListener('click', function (e) { if (e.target.id !== 'copySum') return; var t = weekSummary(); if (!t) return; copyText(t).then(function (ok) { toast(ok ? 'Summary copied' : 'Couldn\'t copy. Try again.'); }); });
-    $('#monthPick').addEventListener('change', function () { period = this.value; renderAll(); });
+    
     $('#shiftsSeg').addEventListener('click', function (e) { var b = e.target.closest('[data-v]'); if (b) setSeg('shiftsSeg', b.getAttribute('data-v')); });
-    $('#repSeg').addEventListener('click', function (e) { var b = e.target.closest('[data-v]'); if (b) setSeg('repSeg', b.getAttribute('data-v')); });
+    $('#repSeg').addEventListener('click', function (e) { var b = e.target.closest('[data-v]'); if (b) { iMode = b.getAttribute('data-v'); setSeg('repSeg', iMode); renderTips(); } });
+    $('#iBars').addEventListener('click', function (e) { var b = e.target.closest('.in-bar'); if (b && !b.disabled) openRange(b.getAttribute('data-a'), b.getAttribute('data-b'), b.getAttribute('data-t')); });
+    $('#iGridBtn').addEventListener('click', function () { iSub(true, 'iGridH'); }); $('#iBestBtn').addEventListener('click', function () { iSub(true, 'iBestH'); }); $('#iBack').addEventListener('click', function () { iSub(false); });
     $('#logBack').addEventListener('click', function () { var was = editing; resetForm(); go(was ? 'shifts' : 'dashboard'); });
     $('#cancelEdit').addEventListener('click', function () { resetForm(); go('shifts'); });
     ['#fIn', '#fOut'].forEach(function (s) { ['input', 'change'].forEach(function (ev) { $(s).addEventListener(ev, function () { guessShift(); var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)); if (sp != null) $('#fHours').value = sp; hoursHint(); updateTake(); }); }); });
@@ -484,7 +514,6 @@
     $('#icsBtn').addEventListener('click', downloadICS);
     $('#bannerText').addEventListener('click', function () { var x = sched.find(function (y) { return y.id === $('#logBanner').getAttribute('data-sid'); }); if (x) openFromSched(x); });
     $('#bannerX').addEventListener('click', function () { var x = sched.find(function (y) { return y.id === $('#logBanner').getAttribute('data-sid'); }); if (x) { x.dismissed = true; saveSched(); } renderBanner(); });
-    $('#wkPrev').addEventListener('click', function () { wkStart = addDays(wkStart, -7); renderReports(); }); $('#wkNext').addEventListener('click', function () { wkStart = addDays(wkStart, 7); renderReports(); });
     ['#gWeek', '#gMonth'].forEach(function (s) { $(s).addEventListener('change', function () { var v = num(this.value), g = getJSON(K.goals) || {}; if (v != null && (isNaN(v) || v < 0)) { toast('Goal should be a number'); this.value = ''; return; }
       g[s === '#gWeek' ? 'week' : 'month'] = v ? r2(v) : null; setJSON(K.goals, g); renderReports(); renderProfile(); }); });
     $('#pfMoreBtn').addEventListener('click', function () { pfSub(true); }); $('#pfBack').addEventListener('click', function () { pfSub(false); });
