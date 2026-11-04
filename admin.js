@@ -1,6 +1,6 @@
 /* Side Work v27: two-step login (TOTP) and the owner-only Admin screen.
    Admin shows usage only (accounts, activity, shift counts). The server functions return no money, hours or notes,
-   check the owner's user id themselves, and require a two-step (aal2) session. */
+   check the owner's user id themselves, and sign-in (v28: password-only). */
 (function () {
   'use strict';
   var $ = function (s) { return document.querySelector(s); };
@@ -67,12 +67,7 @@
     if (!isAdmin) return;
     panel('#pfAdmin'); err('#adErr'); part(null);
     var c = sb();
-    loadFactors().then(function () {
-      if (!verified().length) { part('#adNeed'); return; }
-      return c.auth.mfa.getAuthenticatorAssuranceLevel().then(function (r) {
-        if (r && r.data && r.data.currentLevel === 'aal2') load(); else { part('#adCode'); $('#adCodeIn').value = ''; }
-      });
-    });
+    load();
   }
   function verifyCode() {
     var code = codeOf('#adCodeIn'); if (!code) { err('#adErr', 'Enter the 6-digit code.'); return; }
@@ -87,7 +82,7 @@
       var s = d[0][0] || {};
       users = d[2].map(function (u) { return { email: String(u.email || ''), joined: u.joined, confirmed: !!u.confirmed, last_sign_in: u.last_sign_in, last_sync: u.last_sync, shift_count: +u.shift_count || 0, shifts_this_week: +u.shifts_this_week || 0 }; });
       tiles(s); bars(d[1]); list(); part('#adMain');
-    }).catch(function (e) { if (/mfa/i.test(e && e.message)) { part('#adCode'); } else { part(null); err('#adErr', 'Couldn’t load admin data. ' + ((e && e.message) || '')); } });
+    }).catch(function (e) { { part(null); err('#adErr', 'Couldn’t load admin data. ' + ((e && e.message) || '')); } });
   }
   function pct(a, b) { return b ? Math.round(100 * a / b) + '% of users' : '—'; }
   function tiles(s) {
