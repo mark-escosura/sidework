@@ -483,7 +483,7 @@
     $('#pfStats').innerHTML = '<div class="pf-st"><b>' + a.n + '</b><small>shift' + (a.n === 1 ? '' : 's') + ' logged</small></div><div class="pf-st g"><b>' + (a.rate == null ? '—' : '$' + a.rate.toFixed(2)) + '</b><small>avg per hour</small></div><div class="pf-st"><b>' + m.cur + '</b><small>week streak</small></div>';
     $('#pfWageV').textContent = roles.length ? '$' + roles[0].wage.toFixed(2) + '/hr' : '';
     $('#pfGoalV').textContent = g.month ? money0(g.month) + '/mo' : g.week ? money0(g.week) + '/wk' : 'Not set'; }
-  function pfSub(more) { $('#pfMain').hidden = !!more; $('#pfMore').hidden = !more; window.scrollTo(0, 0); }
+  function pfSub(more) { $('#pfMain').hidden = !!more; $('#pfMore').hidden = !more; ['#pfMfa', '#pfAdmin'].forEach(function (p) { var e = $(p); if (e) e.hidden = true; }); window.scrollTo(0, 0); }
   var pfLast = null;
   function pfSheet(id, open) { var el = $('#' + id); el.hidden = !open; if (open) { pfLast = document.activeElement; var f = el.querySelector('[data-close]'); if (f) f.focus(); } else if (pfLast && pfLast.focus) pfLast.focus(); }
   function renderAll() { renderMonthPick(); renderBanner(); renderDashboard(); renderHistory(); renderCalendar(); renderTips(); renderReports(); renderInsightsEmpty(); renderMilestones(); renderProfile(); }

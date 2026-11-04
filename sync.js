@@ -139,7 +139,8 @@
     if (user) $('#acWho').textContent = user.email || '';
     var sp = $('#s-profile'); if (sp) { sp.classList.add('acct'); sp.classList.toggle('signed', !!user); }
     if (user && $('#pfAv')) { var lp = String(user.email || '').split('@')[0], parts = lp.split(/[._\-+]+/).filter(Boolean); $('#pfName').textContent = parts.length ? parts.map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ').slice(0, 40) : 'Your account'; $('#pfAv').textContent = ((parts[0] || '?').charAt(0) + (parts[1] ? parts[1].charAt(0) : '')).toUpperCase(); }
-    var pn = $('#privNote'); if (pn) pn.textContent = 'Your shifts are saved to your account and cached on this phone while you’re signed in. No bank, nothing shared.';
+    var pn = $('#privNote'); if (pn) pn.textContent = 'Your shifts are saved to your account and cached on this phone while you’re signed in. No bank, nothing shared. The app owner can see that you have an account, when you joined, when you last used it, and how many shifts you log — never your tips, pay, hours or notes.';
+    try { document.dispatchEvent(new CustomEvent('sidework:account')); } catch (e) {}
   }
   function afterIn(email, title) {
     var L = ['Signed in as ' + email, 'Merging shifts from this phone', 'Saving to your account'];
@@ -262,7 +263,7 @@
   }
   // Gate first paint: nothing shows until a session owns this device's data.
   if (A && !SW.unlocked()) { if (hasSessKey()) steps('Opening your account…', '', ['Checking your session', 'Loading your shifts'], 0, 'One moment.'); else view('signin'); }
-  window.SideWorkSync = { changed: changed, sync: sync, open: function (v) { openAuth(v); } };
+  window.SideWorkSync = { changed: changed, sync: sync, open: function (v) { openAuth(v); }, client: function () { return sb; }, user: function () { return user; } };
   if (window.supabase && window.supabase.createClient) start();
   else { var t = document.createElement('script'); t.src = CDN; t.onload = start; t.onerror = function () { $('#acctCard').hidden = false; if ($('#s-profile')) $('#s-profile').classList.add('acct'); msg('Account service could not load. Working from this phone; sync will retry.'); if (!SW.unlocked()) { view('signin'); box('#inErr', 'Can’t reach your account right now. Check your connection.'); } }; document.head.appendChild(t); }
 })();

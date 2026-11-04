@@ -181,9 +181,13 @@
       <button type="button" class="pf-row pf-signed" id="acSync"><span class="pf-ic b">⟳</span><span class="pf-t">Sync now</span><span class="pf-ch">›</span></button>
       <button type="button" class="pf-row" id="pfMoreBtn"><span class="pf-ic n">•••</span><span class="pf-t">More</span><span class="pf-v">Milestones, backup</span><span class="pf-ch">›</span></button>
     </div>
+    <div class="pf-grp pf-signed">
+      <button type="button" class="pf-row" id="mfaBtn"><span class="pf-ic p">⚿</span><span class="pf-t">Two-step login</span><span class="pf-v" id="mfaV">Off</span><span class="pf-ch">›</span></button>
+      <button type="button" class="pf-row" id="adminBtn" hidden><span class="pf-ic b">▤</span><span class="pf-t">Admin<small>Usage only · just you</small></span><span class="pf-ch">›</span></button>
+    </div>
     <div class="pf-grp pf-signed"><button type="button" class="pf-row pf-red" id="acOutBtn"><span class="pf-t">Sign out</span></button></div>
-    <p class="muted xs pf-note pf-signed">Signing out keeps your shifts on this phone.</p>
-    <p class="muted xs pf-note" id="privNote">Your shifts are saved to your account and cached on this phone while you’re signed in. No bank, nothing shared.</p>
+    <p class="muted xs pf-note pf-signed">Signing out uploads your changes, then removes your shifts from this phone.</p>
+    <p class="muted xs pf-note" id="privNote">Your shifts are saved to your account and cached on this phone while you’re signed in. No bank, nothing shared. The app owner can see that you have an account, when you joined, when you last used it, and how many shifts you log — never your tips, pay, hours or notes.</p>
    </div>
    <div id="pfMore" hidden>
     <button type="button" class="pf-back" id="pfBack">‹ Profile</button>
@@ -201,8 +205,36 @@
     <div class="pf-grp">
       <details class="pf-det install"><summary class="pf-row"><span class="pf-ic o">＋</span><span class="pf-t">Add to Home Screen</span><span class="pf-ch">›</span></summary><p class="muted s">On iPhone: Share → Add to Home Screen for a full-screen app feel.</p></details>
       <details class="pf-det"><summary class="pf-row"><span class="pf-ic p">⛨</span><span class="pf-t">Privacy</span><span class="pf-ch">›</span></summary><p class="muted s">No bank links, no ads, no trackers. Shifts live on this phone; if you sign in they also sync to your private account that only you can read.</p></details>
-      <div class="pf-row"><span class="pf-ic n">i</span><span class="pf-t">About</span><span class="pf-v" id="pfVer">Side Work · v26</span></div>
+      <div class="pf-row"><span class="pf-ic n">i</span><span class="pf-t">About</span><span class="pf-v" id="pfVer">Side Work · v27</span></div>
     </div>
+   </div>
+   <div id="pfMfa" hidden>
+    <button type="button" class="pf-back" data-pfback>‹ Profile</button>
+    <h1>Two-step login</h1>
+    <p class="sub">Use an authenticator app (Google Authenticator, 1Password, Authy) for a 6-digit code when needed.</p>
+    <div id="mfaOn" hidden><div class="card"><p><b>Two-step login is on.</b></p><p class="muted s">You’ll be asked for a code to open Admin.</p></div>
+      <div class="pf-grp"><button type="button" class="pf-row pf-red" id="mfaOff"><span class="pf-t">Turn off two-step login</span></button></div></div>
+    <div id="mfaOffV" hidden><button type="button" class="btn primary" id="mfaStart">Set up two-step login</button></div>
+    <div id="mfaEnroll" hidden><div class="card ad-qr"><p class="s">1. Scan this with your authenticator app.</p><img id="mfaQr" alt="QR code for your authenticator app" width="180" height="180">
+      <p class="muted xs">Can’t scan? Enter this key: <code id="mfaSecret"></code></p>
+      <p class="s">2. Enter the 6-digit code it shows.</p><input id="mfaCode" class="ad-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" aria-label="6-digit code">
+      <button type="button" class="btn primary" id="mfaVerify">Verify and turn on</button></div></div>
+    <p class="ad-err" id="mfaErr" hidden></p>
+   </div>
+   <div id="pfAdmin" hidden>
+    <button type="button" class="pf-back" data-pfback>‹ Profile</button>
+    <div id="adNeed" hidden><h1>Admin</h1><div class="card"><p><b>Set up two-step login first.</b></p><p class="muted s">Admin shows coworkers’ emails, so it only opens after a code from your authenticator app.</p><button type="button" class="btn primary" id="adToMfa">Set up two-step login</button></div></div>
+    <div id="adCode" hidden><h1>Admin</h1><div class="card"><p><b>Enter your 6-digit code</b></p><p class="muted s">From your authenticator app.</p><input id="adCodeIn" class="ad-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" aria-label="6-digit code"><button type="button" class="btn primary" id="adCodeBtn">Continue</button></div></div>
+    <div id="adMain" hidden><h1>Usage</h1><p class="sub">Who’s using Side Work. Counts only, never amounts.</p>
+      <div class="ad-grid" id="adTiles"></div>
+      <div class="card"><div class="ad-ct">New sign-ups <span>per week · last 8</span></div><div class="ad-bars" id="adBars"></div><div class="ad-ax" id="adAx"></div></div>
+      <div class="segtabs" id="adSeg"><button type="button" data-f="all" class="on">All</button><button type="button" data-f="active">Active 7d</button><button type="button" data-f="unconf">Not confirmed</button></div>
+      <input id="adSearch" class="ad-search" type="search" placeholder="Search email" aria-label="Search email">
+      <div class="card" id="adList"></div>
+      <p class="muted xs pf-note">Only your account can open this page. Tips, cash, card, wages, hours and notes are never sent here — not even totals.</p></div>
+    <div id="adDetail" hidden><button type="button" class="pf-back" id="adDBack">‹ Users</button><div class="ad-big"><div class="pf-av" id="adDAv"></div><b id="adDEmail"></b><span class="ad-pill" id="adDConf"></span></div><div class="card" id="adDKv"></div>
+      <p class="muted xs pf-note">You can see that this person has an account and how often they log shifts. Their tips, pay, hours, roles and notes stay private to them.</p></div>
+    <p class="ad-err" id="adErr" hidden></p>
    </div>
    <div class="pf-sheet" id="pfRoleSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pfRoleH"><div class="pf-sh">
       <div class="pf-grab"></div><div class="pf-shh"><h2 id="pfRoleH">Roles &amp; base pay</h2><button type="button" class="btn sm primary" data-close>Done</button></div>
@@ -294,5 +326,6 @@
 <script src="config.js"></script>
 <script src="app.js"></script>
 <script src="sync.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>
