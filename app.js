@@ -1,4 +1,4 @@
-/* Side Work · Tip Tracker. Offline-first, localStorage only. No accounts, no network, nothing shared. */
+/* Side Work · Tip Tracker. Account required (v26): data is only shown for the signed-in owner. */
 (function () {
   'use strict';
   var $ = function (s) { return document.querySelector(s); }, $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
@@ -28,18 +28,23 @@
   function spanHours(a, b) { if (!okTime(a) || !okTime(b)) return null; var d = (+b.slice(0, 2) * 60 + +b.slice(3)) - (+a.slice(0, 2) * 60 + +a.slice(3)); if (d <= 0) d += 1440; return r2(d / 60); }
   function fmtTime(t) { if (!okTime(t)) return ''; var h = +t.slice(0, 2), m = t.slice(3); return ((h % 12) || 12) + (m === '00' ? '' : ':' + m) + (h < 12 ? 'am' : 'pm'); }
   function shiftFor(t) { if (!okTime(t)) return null; var m = +t.slice(0, 2) * 60 + +t.slice(3); return m < 300 ? 'overnight' : m < 630 ? 'breakfast' : m < 900 ? 'lunch' : m < 1260 ? 'dinner' : 'overnight'; }
-  function getJSON(k) { try { var v = JSON.parse(localStorage.getItem(k)); return v; } catch (e) { return null; } }
-  function setJSON(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  /* v26: account required. User data is only read or written while a signed-in session owns this device's data (sidework.owner === session user id). */
+  var USERK = [K.shifts, K.roles, K.last, K.sched, K.goals, K.backup, OLD.shifts, OLD.roles, OLD.wage, OLD.sched], OWNER = 'sidework.owner';
+  function sessUid() { try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/^sb-.*-auth-token$/.test(k) || k === 'mock.session') { var v = JSON.parse(localStorage.getItem(k)); var u = v && (v.user || (v.currentSession && v.currentSession.user)); if (u && u.id) return u.id; } } } catch (e) {} return null; }
+  var unlocked = (function () { var u = sessUid(); return !!u && localStorage.getItem(OWNER) === u; })();
+  function uget(k) { return unlocked || USERK.indexOf(k) < 0 ? localStorage.getItem(k) : null; }
+  function getJSON(k) { if (!unlocked && USERK.indexOf(k) >= 0) return null; try { var v = JSON.parse(localStorage.getItem(k)); return v; } catch (e) { return null; } }
+  function setJSON(k, v) { if (!unlocked && USERK.indexOf(k) >= 0) return; localStorage.setItem(k, JSON.stringify(v)); }
 
   /* ---------- roles ---------- */
   function loadRoles() { var a = getJSON(K.roles); if (!Array.isArray(a)) a = getJSON(OLD.roles);
     a = Array.isArray(a) ? a.filter(function (r) { return r && r.name && okWage(+r.wage); }).map(function (r) { return { id: String(r.id || uid('r')), name: String(r.name).slice(0, 40), wage: r2(+r.wage) }; }) : [];
-    if (!a.length) { var w = parseFloat(localStorage.getItem(OLD.wage)); a = [{ id: 'r-server', name: 'Server', wage: okWage(w) ? r2(w) : DEFAULT_WAGE }]; }
+    if (!a.length) { var w = parseFloat(uget(OLD.wage)); a = [{ id: 'r-server', name: 'Server', wage: okWage(w) ? r2(w) : DEFAULT_WAGE }]; }
     setJSON(K.roles, a); return a; }
   var roles = loadRoles();
   function saveRoles() { setJSON(K.roles, roles); }
   function roleByName(n) { n = String(n || '').trim().toLowerCase(); return roles.find(function (r) { return r.name.toLowerCase() === n; }) || null; }
-  function defaultRole() { var id = localStorage.getItem(K.last); return roles.find(function (r) { return r.id === id; }) || roles[0]; }
+  function defaultRole() { var id = uget(K.last); return roles.find(function (r) { return r.id === id; }) || roles[0]; }
 
   /* ---------- shifts + safe migration ----------
      New records: cash + card tips (each number or null); tips = cash + card, or null if both blank.
@@ -371,7 +376,7 @@
     $('#hoursHint').textContent = sp == null ? '' : h != null && !isNaN(h) && Math.abs(h - sp) > 0.004 ? '(' + sp + 'h clocked, ' + (h < sp ? r2(sp - h) + 'h break' : 'override') + ')' : '(from clock)'; }
   function moreSummary() { var f = readForm(), b = []; if (f.date && f.date !== iso(new Date())) b.push(nice(f.date)); if (f.tipout) b.push('tipped out ' + money(f.tipout)); if (f.sales) b.push('sales ' + money(f.sales)); if (f.note) b.push('note'); $('#moreSum').textContent = b.length ? '· ' + b.join(' · ') : ''; }
   function commit(f) { var role = roleByName(f.role), prev = editingRec(), T = formTips(f), msBefore = milestones(shifts, lastBackup());
-    var w = prev && prev.role === f.role && okWage(prev.wage) ? prev.wage : role ? role.wage : prev ? prev.wage : roles[0].wage; if (role) localStorage.setItem(K.last, role.id);
+    var w = prev && prev.role === f.role && okWage(prev.wage) ? prev.wage : role ? role.wage : prev ? prev.wage : roles[0].wage; if (role && unlocked) localStorage.setItem(K.last, role.id);
     var rec = { date: f.date, shift: f.shift, role: f.role, wage: r2(w), clockIn: f.clockIn, clockOut: f.clockOut, hours: r2(f.hours), cash: T.cash, card: T.card, tips: T.tips,
       tipout: r2(f.tipout || 0), sales: f.sales == null ? null : r2(f.sales), note: f.note.slice(0, 200) };
     if (prev) { rec.id = prev.id; rec.createdAt = prev.createdAt; shifts[shifts.indexOf(prev)] = rec; } else { rec.id = uid(); rec.createdAt = new Date().toISOString(); shifts.push(rec); }
@@ -450,7 +455,7 @@
     var locked = items.filter(function (x) { return !x.earned && x.kind !== 'backup'; }), next = null;
     locked.forEach(function (x) { if (!next || x.frac > next.frac) next = x; });
     return { items: items, earned: earned, bestNight: bestNight, bestNightDates: bestNightDates, bestRate: bestRate, cur: cur, best: best, count: L.length, next: next }; }
-  function lastBackup() { var v = localStorage.getItem(K.backup); return v && !isNaN(Date.parse(v)) ? v : null; }
+  function lastBackup() { var v = uget(K.backup); return v && !isNaN(Date.parse(v)) ? v : null; }
   var msOpen = false;
   function renderMilestones() { var w = $('#msWrap'); if (!w) return; var m = milestones(shifts, lastBackup());
     if (!m.count) { w.innerHTML = '<div class="card ms-empty muted s">Log your first shift to start earning milestones.</div>'; return; }
@@ -535,15 +540,19 @@
     $('#addRole').addEventListener('click', function () { var n = $('#newRoleName').value.trim().slice(0, 40), v = num($('#newRoleWage').value);
       if (!n) { toast('Give the role a name'); return; } if (roleByName(n)) { toast('You already have ' + n); return; } if (v == null || isNaN(v) || v < 0 || v > 200) { toast('Wage should be between $0 and $200'); return; }
       roles.push({ id: uid('r'), name: n, wage: r2(v) }); $('#newRoleName').value = ''; $('#newRoleWage').value = ''; rolesChanged('Added ' + n + ' $' + r2(v).toFixed(2) + '/hr'); });
-    window.addEventListener('storage', function (e) { if (e.key === K.sched) { sched = loadSched(); renderAll(); } if (e.key === K.shifts) { shifts = loadShifts(); renderAll(); } });
+    window.addEventListener('storage', function (e) { if (!unlocked) return; if (e.key === K.sched) { sched = loadSched(); renderAll(); } if (e.key === K.shifts) { shifts = loadShifts(); renderAll(); } });
   }
-  function init() { applyIcon(localStorage.getItem(K.icon)); applyTheme(localStorage.getItem(K.theme) === 'light' ? 'light' : 'dark'); bind(); resetForm(); renderRoleSettings(); renderAll();
+  function init() { document.body.classList.toggle('locked', !unlocked); applyIcon(localStorage.getItem(K.icon)); applyTheme(localStorage.getItem(K.theme) === 'light' ? 'light' : 'dark'); bind(); resetForm(); renderRoleSettings(); renderAll();
     window.addEventListener('hashchange', function () { var k = (location.hash || '').slice(1); if (TAB[k] && (ALIAS[k] || k) !== screen) go(k); });
     var h = (location.hash || '').slice(1); if (prefillFromLink()) { renderAll(); go('log'); } else go(TAB[h] ? h : 'dashboard');
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {}); }
   window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
   /* Optional cloud sync bridge (sync.js). Never writes unless sync.js is configured and signed in. */
   window.SideWork = { key: K.shifts, normalize: migrate, get: function () { return shifts.slice(); },
-    set: function (list) { shifts = list.map(migrate).filter(Boolean); setJSON(K.shifts, shifts); renderAll(); }, toast: function (m) { toast(m); } };
+    set: function (list) { shifts = list.map(migrate).filter(Boolean); setJSON(K.shifts, shifts); renderAll(); }, toast: function (m) { toast(m); }, userKeys: USERK.slice(), owner: OWNER,
+    unlocked: function () { return unlocked; },
+    unlock: function () { if (unlocked) return; unlocked = true; document.body.classList.remove('locked'); reload(); go('dashboard'); },
+    lock: function () { unlocked = false; document.body.classList.add('locked'); reload(); } };
+  function reload() { roles = loadRoles(); shifts = loadShifts(); sched = loadSched(); resetForm(); renderRoleSettings(); renderAll(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

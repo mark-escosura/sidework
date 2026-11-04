@@ -157,12 +157,7 @@
   <section class="screen" id="s-profile" hidden>
    <div id="pfMain">
     <h1>Profile</h1>
-    <div class="card pf-hero" id="pfHeroLocal"><div class="pf-av off" aria-hidden="true">SW</div><div class="pf-id"><b>On this phone only</b><small>No account. Your shifts never leave this phone.</small></div></div>
     <div class="card pf-hero-wrap" id="acctCard" hidden>
-      <div id="acctOut">
-        <div class="pf-hero"><div class="pf-av off" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div><div class="pf-id"><b>On this phone only</b><small>Sign in to back up and sync across devices. Optional.</small></div></div>
-        <button type="button" class="btn primary wide" id="acOpen">Sign in or create account</button>
-      </div>
       <div id="acctIn" hidden>
         <div class="pf-hero"><div class="pf-av" id="pfAv" aria-hidden="true">?</div><div class="pf-id"><b id="pfName">Your account</b><small id="acWho"></small><span class="pf-sync"><i></i><span id="acStatus">—</span></span></div></div>
       </div>
@@ -188,7 +183,7 @@
     </div>
     <div class="pf-grp pf-signed"><button type="button" class="pf-row pf-red" id="acOutBtn"><span class="pf-t">Sign out</span></button></div>
     <p class="muted xs pf-note pf-signed">Signing out keeps your shifts on this phone.</p>
-    <p class="muted xs pf-note" id="privNote">Everything stays on this phone. No accounts, no bank, nothing shared.</p>
+    <p class="muted xs pf-note" id="privNote">Your shifts are saved to your account and cached on this phone while you’re signed in. No bank, nothing shared.</p>
    </div>
    <div id="pfMore" hidden>
     <button type="button" class="pf-back" id="pfBack">‹ Profile</button>
@@ -206,7 +201,7 @@
     <div class="pf-grp">
       <details class="pf-det install"><summary class="pf-row"><span class="pf-ic o">＋</span><span class="pf-t">Add to Home Screen</span><span class="pf-ch">›</span></summary><p class="muted s">On iPhone: Share → Add to Home Screen for a full-screen app feel.</p></details>
       <details class="pf-det"><summary class="pf-row"><span class="pf-ic p">⛨</span><span class="pf-t">Privacy</span><span class="pf-ch">›</span></summary><p class="muted s">No bank links, no ads, no trackers. Shifts live on this phone; if you sign in they also sync to your private account that only you can read.</p></details>
-      <div class="pf-row"><span class="pf-ic n">i</span><span class="pf-t">About</span><span class="pf-v" id="pfVer">Side Work · v25</span></div>
+      <div class="pf-row"><span class="pf-ic n">i</span><span class="pf-t">About</span><span class="pf-v" id="pfVer">Side Work · v26</span></div>
     </div>
    </div>
    <div class="pf-sheet" id="pfRoleSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pfRoleH"><div class="pf-sh">
@@ -232,7 +227,7 @@
 <div class="cel" id="cel" hidden><div class="cel-conf" id="celConf" aria-hidden="true"></div><div class="cel-sheet" role="dialog" aria-modal="true" aria-labelledby="celT"><div class="cel-ic" id="celIc" aria-hidden="true">🏆</div><h3 id="celT"></h3><p id="celSub"></p><div class="cel-chips" id="celChips"></div><button type="button" class="btn primary wide" id="celDone">Done</button></div></div>
 <div class="auth" id="auth" hidden>
  <div class="au-v" data-v="signin">
-  <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Welcome back</h1><p class="au-sub">Sign in to sync your tips across devices.</p></div>
+  <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Welcome back</h1><p class="au-sub">Sign in to see your shifts and tips.</p></div>
   <form class="au-card" id="auFormIn" novalidate>
    <div class="au-alert" id="inErr" role="alert" hidden></div>
    <p class="au-note" id="inNote" role="status" hidden></p>
@@ -242,7 +237,7 @@
    <button type="submit" class="au-btn" id="acIn">Sign in</button>
   </form>
   <p class="au-switch">New to Side Work? <button type="button" class="au-link" data-go="signup">Create account</button></p>
-  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+  <div class="au-foot"><p class="au-priv">An account keeps your shifts safe and synced. Nothing shows on this phone until you sign in.</p></div>
  </div>
  <div class="au-v" data-v="signup" hidden>
   <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Create your account</h1><p class="au-sub">Back up your shifts and use Side Work on any device.</p></div>
@@ -254,14 +249,14 @@
    <button type="submit" class="au-btn" id="acUp">Create account</button>
   </form>
   <p class="au-switch">Already have an account? <button type="button" class="au-link" data-go="signin">Sign in</button></p>
-  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+  <div class="au-foot"><p class="au-priv">An account keeps your shifts safe and synced. Nothing shows on this phone until you sign in.</p></div>
  </div>
  <div class="au-v" data-v="check" hidden>
   <div class="au-center"><div class="au-mail"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg></div><h1>Check your email</h1><p class="au-sub">We sent a confirmation link to<br><b id="ckEmail"></b>. Tap it to finish creating your account, then sign in.</p></div>
   <div class="au-stack"><button type="button" class="au-btn" data-go="signin">Back to sign in</button><button type="button" class="au-ghost" id="ckResend">Resend email</button></div>
   <p class="au-note" id="ckNote" role="status" hidden></p>
   <p class="au-switch">Wrong address? <button type="button" class="au-link" data-go="signup">Change email</button></p>
-  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+  <div class="au-foot"><p class="au-priv">An account keeps your shifts safe and synced. Nothing shows on this phone until you sign in.</p></div>
  </div>
  <div class="au-v" data-v="forgot" hidden>
   <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Reset password</h1><p class="au-sub">We’ll email you a link to choose a new password.</p></div>
@@ -272,7 +267,7 @@
    <button type="submit" class="au-btn" id="fgSend">Send reset link</button>
   </form>
   <p class="au-switch">Remembered it? <button type="button" class="au-link" data-go="signin">Sign in</button></p>
-  <div class="au-foot"><button type="button" class="au-skip" data-skip>Continue without account</button><p class="au-priv">Your shifts stay on this phone unless you sign in to sync.</p></div>
+  <div class="au-foot"><p class="au-priv">An account keeps your shifts safe and synced. Nothing shows on this phone until you sign in.</p></div>
  </div>
  <div class="au-v" data-v="newpw" hidden>
   <div class="au-brand"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Choose a new password</h1><p class="au-sub">You opened a reset link. Set a new password for your account.</p></div>
@@ -286,11 +281,15 @@
   <div class="au-load"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><div class="au-spin" id="bzSpin"></div><h1 id="bzTitle">Signing in…</h1><p class="au-sub" id="bzSub"></p><div class="au-bar" id="bzBarW"><i id="bzBar"></i></div><p class="au-stepn" id="bzN"></p><ul class="au-steps" id="bzSteps"></ul></div>
   <div class="au-foot"><p class="au-priv" id="bzFoot">Nothing is deleted from this phone.</p></div>
  </div>
+ <div class="au-v" data-v="sofail" hidden>
+  <div class="au-load"><img class="au-logo" src="icon-192.png" alt="Side Work" width="84" height="84"><h1>Some changes aren’t uploaded</h1><p class="au-sub" id="sfSub"></p></div>
+  <div class="au-card"><button type="button" class="au-btn" id="sfStay">Stay signed in</button><button type="button" class="au-btn au-ghost" id="sfRetry">Try again</button><button type="button" class="au-link au-danger" id="sfForce">Sign out and delete changes</button></div>
+ </div>
  <div class="au-v" data-v="welcome" hidden>
   <div class="au-load"><div class="au-ok"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div><h1 id="wbTitle">Welcome back</h1><p class="au-sub" id="wbSub"></p><p class="au-sub au-sm">Opening Overview…</p></div>
  </div>
 </div>
-<div class="au-sheetwrap" id="soSheet" hidden><div class="au-dim" data-socancel></div><div class="au-sheet" role="dialog" aria-modal="true" aria-labelledby="soT"><div class="au-sg"><div class="au-sh"><b id="soT">Sign out?</b><p>Your shifts stay on this phone. They’ll stop syncing until you sign in again.</p></div><button type="button" class="au-sa" id="soOk">Sign out</button></div><button type="button" class="au-sc" id="soCancel" data-socancel>Cancel</button></div></div>
+<div class="au-sheetwrap" id="soSheet" hidden><div class="au-dim" data-socancel></div><div class="au-sheet" role="dialog" aria-modal="true" aria-labelledby="soT"><div class="au-sg"><div class="au-sh"><b id="soT">Sign out?</b><p id="soP">Your shifts are saved to your account and will be removed from this phone.</p></div><button type="button" class="au-sa" id="soOk">Sign out</button></div><button type="button" class="au-sc" id="soCancel" data-socancel>Cancel</button></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="config.js"></script>
 <script src="app.js"></script>

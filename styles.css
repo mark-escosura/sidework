@@ -220,7 +220,7 @@ html[data-theme=light] .au-alert,html[data-theme=light] .au-ferr{color:#B91C1C}
 /* ---------- Profile v24 ---------- */
 #s-profile .pf-hero{display:flex;align-items:center;gap:14px}
 .pf-hero-wrap #acOpen{margin-top:14px}
-#s-profile.acct #pfHeroLocal{display:none}
+
 .pf-av{width:56px;height:56px;flex:none;border-radius:50%;background:linear-gradient(135deg,#10B981,#34D399);color:#04140d;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center}
 .pf-av.off{background:var(--input);color:var(--text2);border:1px solid var(--border);font-size:15px}
 .pf-id{min-width:0;display:flex;flex-direction:column;gap:2px}.pf-id b{font-size:18px}.pf-id small{color:var(--text2);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -267,4 +267,9 @@ html[data-theme=light] .au-alert,html[data-theme=light] .au-ferr{color:#B91C1C}
 .in-bl{margin:0;padding:4px 14px 4px 34px}.in-bl li{padding:10px 0;border-top:1px solid var(--border)}.in-bl li:first-child{border-top:0}
 #iShBody .c{text-align:center}#iShBody .in-big{margin-top:4px}
 /* signed-out profile subtitle wraps */
-#acctOut .pf-id small{white-space:normal;overflow:visible}
+
+/* ---------- v26 account required ---------- */
+body.locked .hdr,body.locked main,body.locked .tabbar{display:none!important}
+.au-ghost{background:transparent!important;border:1px solid var(--border)!important;color:var(--text)!important;margin-top:10px}
+.au-danger{display:block;margin:16px auto 0;color:var(--danger)!important}
+#sofail .au-card,[data-v=sofail] .au-card{display:flex;flex-direction:column}

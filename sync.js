@@ -1,9 +1,12 @@
-/* Side Work optional cloud sync (Supabase). Inactive unless config.js has a URL + anon key.
-   Local data is the source of truth on this phone: sync only adds/updates, and signing out never clears it. */
+/* Side Work accounts + cloud sync (Supabase). v26: an account is required.
+   Shift data is shown only while a signed-in session owns this device's data. Signing out uploads unsynced edits first,
+   then removes shifts from this phone. Never-synced shifts from before accounts stay hidden until the next sign-in merges them up. */
 (function () {
   'use strict';
   var C = window.SIDEWORK_CONFIG || {}, URL_ = (C.SUPABASE_URL || '').trim(), KEY = (C.SUPABASE_ANON_KEY || '').trim();
-  if (!URL_ || !KEY || !window.SideWork) return;
+  if (!window.SideWork) return;
+  if (!URL_ || !KEY) { window.SideWork.lock(); var a0 = document.getElementById('auth'); if (a0) { a0.hidden = false; document.body.classList.add('authing'); a0.setAttribute('data-view', 'signin');
+    var e0 = document.getElementById('inErr'); if (e0) { e0.textContent = 'Sign-in isn’t available right now. Try again later.'; e0.hidden = false; } } return; }
   var SW = window.SideWork, META = 'sidework.sync', CDN = 'vendor/supabase.js';
   var $ = function (s) { return document.querySelector(s); };
   var sb = null, user = null, busy = false, again = false, timer = null, applying = false;
@@ -22,7 +25,7 @@
   /* Two-way merge. snap = what we last agreed with the cloud. Local changes since snap win; otherwise cloud changes apply. */
   var running = null, last = { ok: true };
   function sync(prog) {
-    if (!user || !sb) return Promise.resolve({ ok: false, error: 'Not signed in' });
+    if (!user || !sb || !SW.unlocked()) return Promise.resolve({ ok: false, error: 'Not signed in' });
     if (busy) { again = true; return running; }
     if (navigator.onLine === false) { status('Offline · will sync later'); return Promise.resolve({ ok: false, error: 'You’re offline' }); }
     prog = prog || function () {};
@@ -65,13 +68,39 @@
         var ns = {}; local.forEach(function (s) { ns[s.id] = sig(s); }); setMeta({ uid: user.id, snap: ns, at: new Date().toISOString() });
         status('Synced ' + fmt(new Date()) + ' · ' + local.length + ' shift' + (local.length === 1 ? '' : 's'));
         last = { ok: true, n: local.length, pushed: ups.length, pulled: remote.length }; });
-    }).catch(function (e) { last = { ok: false, error: (e && e.message) || 'error' }; status('Not synced · ' + last.error + '. Your shifts are safe on this phone.'); })
+    }).catch(function (e) { last = { ok: false, error: (e && e.message) || 'error' }; status('Not synced · ' + last.error + '. Will retry.'); })
       .then(function () { busy = false; if (again) { again = false; return sync1(prog); } return last; });
   }
   function changed() { if (applying || !user) return; clearTimeout(timer); timer = setTimeout(sync, 800); }
 
   /* ---------- Full-screen auth UI ---------- */
-  var SKIP = 'sidework.authSkip', inFlow = false, A = $('#auth');
+  var inFlow = false, A = $('#auth'), OWN = SW.owner, STASH = 'sidework.stash.';
+  /* ---------- per-user device data ---------- */
+  function ukeys() { return SW.userKeys.concat([META]); }
+  function grab(keys) { var o = {}; keys.forEach(function (k) { var v = localStorage.getItem(k); if (v != null) o[k] = v; }); return o; }
+  function stash(uid, o) { if (!uid || !Object.keys(o).length) return; var old = {}; try { old = JSON.parse(localStorage.getItem(STASH + uid)) || {}; } catch (e) {} for (var k in o) old[k] = o[k]; localStorage.setItem(STASH + uid, JSON.stringify(old)); }
+  function clearUser() { ukeys().forEach(function (k) { localStorage.removeItem(k); }); }
+  // Make this device's data belong to u. Another user's cache is moved aside (hidden, kept); never-synced legacy shifts are claimed and merged up.
+  function claim(u) {
+    var own = localStorage.getItem(OWN), m = meta();
+    if (own !== u.id) {
+      var prev = own || (m.uid && m.uid !== u.id ? m.uid : null);
+      if (prev && prev !== u.id) { stash(prev, grab(ukeys())); clearUser(); }
+      var st = null; try { st = JSON.parse(localStorage.getItem(STASH + u.id)); } catch (e) {}
+      if (st) { for (var k in st) if (localStorage.getItem(k) == null) localStorage.setItem(k, st[k]); localStorage.removeItem(STASH + u.id); }
+      localStorage.setItem(OWN, u.id);
+    }
+    SW.unlock();
+  }
+  function pending() { var loc = SW.get(), m = meta(); if (!user || m.uid !== user.id) return loc.length;
+    var snap = m.snap || {}, n = 0, have = {}; loc.forEach(function (s) { have[s.id] = 1; if (snap[s.id] !== sig(s)) n++; }); Object.keys(snap).forEach(function (id) { if (!have[id]) n++; }); return n; }
+  function wipe(uid) {
+    // shifts live in the account; device-only settings (roles, goals, schedule) are kept hidden for this user only.
+    stash(uid, grab([SW.userKeys[1], SW.userKeys[2], SW.userKeys[3], SW.userKeys[4], SW.userKeys[5]]));
+    clearUser(); localStorage.removeItem(OWN);
+    try { if (indexedDB && indexedDB.databases) indexedDB.databases().then(function (l) { l.forEach(function (d) { if (d.name) indexedDB.deleteDatabase(d.name); }); }).catch(function () {}); } catch (e) {}
+    try { if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { if (!/^sidework-v\d+$/.test(k)) caches.delete(k); }); }); } catch (e) {}
+  }
   var EMAIL_RE = /^\S+@\S+\.\S+$/;
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function hasSessKey() { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/^sb-.*-auth-token$/.test(k) || k === 'mock.session') return true; } return false; }
@@ -106,11 +135,11 @@
   }
   function show() {
     $('#acctCard').hidden = false;
-    $('#acctOut').hidden = !!user; $('#acctIn').hidden = !user;
+    $('#acctIn').hidden = !user;
     if (user) $('#acWho').textContent = user.email || '';
     var sp = $('#s-profile'); if (sp) { sp.classList.add('acct'); sp.classList.toggle('signed', !!user); }
     if (user && $('#pfAv')) { var lp = String(user.email || '').split('@')[0], parts = lp.split(/[._\-+]+/).filter(Boolean); $('#pfName').textContent = parts.length ? parts.map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ').slice(0, 40) : 'Your account'; $('#pfAv').textContent = ((parts[0] || '?').charAt(0) + (parts[1] ? parts[1].charAt(0) : '')).toUpperCase(); }
-    var pn = $('#privNote'); if (pn) pn.textContent = user ? 'Signed in: your shifts are saved on this phone and synced to your account. No bank, nothing shared.' : 'Everything stays on this phone unless you sign in. No bank, nothing shared.';
+    var pn = $('#privNote'); if (pn) pn.textContent = 'Your shifts are saved to your account and cached on this phone while you’re signed in. No bank, nothing shared.';
   }
   function afterIn(email, title) {
     var L = ['Signed in as ' + email, 'Merging shifts from this phone', 'Saving to your account'];
@@ -118,7 +147,7 @@
     return sync(function (n) { steps(title || 'Signing in…', 'Syncing your shifts', L, n); }).then(function (r) {
       r = r || last; steps(title || 'Signing in…', 'Syncing your shifts', L, 3); show();
       $('#wbTitle').textContent = title === 'Creating account…' ? 'You’re all set' : 'Welcome back';
-      $('#wbSub').textContent = r && r.ok ? 'You’re signed in and ' + r.n + ' shift' + (r.n === 1 ? ' is' : 's are') + ' synced.' : 'You’re signed in. Sync will retry soon. Your shifts are safe on this phone.';
+      $('#wbSub').textContent = r && r.ok ? 'You’re signed in and ' + r.n + ' shift' + (r.n === 1 ? ' is' : 's are') + ' synced.' : 'You’re signed in. Sync will retry when you’re back online.';
       return wait(350).then(function () { view('welcome'); return wait(1400); });
     }).then(function () { inFlow = false; closeAuth(); var tb = document.querySelector('#tabbar [data-tab=dashboard]'); if (tb) tb.click(); scrollTo(0, 0); });
   }
@@ -130,7 +159,7 @@
     inFlow = true; steps('Signing in…', 'Checking your account', ['Signing in', 'Merging shifts from this phone', 'Saving to your account'], 0, 'Don’t close the app. This takes a few seconds.');
     sb.auth.signInWithPassword({ email: em, password: pw }).then(function (r) {
       if (r.error || !r.data || !r.data.session) { inFlow = false; view('signin'); box('#inErr', friendly(r.error && r.error.message)); $('#acPass').classList.add('au-bad'); $('#inPwErr').hidden = !/invalid login/i.test((r.error && r.error.message) || ''); return; }
-      user = r.data.session.user; $('#acPass').value = ''; localStorage.removeItem(SKIP); return afterIn(user.email || em);
+      user = r.data.session.user; $('#acPass').value = ''; claim(user); return afterIn(user.email || em);
     }, function (err) { inFlow = false; view('signin'); box('#inErr', friendly(err && err.message)); });
   }
   function strength(p) { var n = 0; if (p.length >= 8) n++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) n++; if (/\d/.test(p)) n++; if (/[^A-Za-z0-9]/.test(p) || p.length >= 12) n++; return p ? Math.max(n, 1) : 0; }
@@ -146,9 +175,9 @@
     sb.auth.signUp({ email: em, password: p1, options: { emailRedirectTo: location.origin + location.pathname } }).then(function (r) {
       $('#acUp').disabled = false;
       if (r.error) { inFlow = false; box('#upErr', friendly(r.error.message)); return; }
-      $('#upPass').value = $('#upPass2').value = ''; meter(); localStorage.removeItem(SKIP);
+      $('#upPass').value = $('#upPass2').value = ''; meter();
       if (!r.data.session) { inFlow = false; $('#ckEmail').textContent = em; $('#acEmail').value = em; view('check'); return; }
-      user = r.data.session.user; return afterIn(user.email || em, 'Creating account…');
+      user = r.data.session.user; claim(user); return afterIn(user.email || em, 'Creating account…');
     }, function (err) { inFlow = false; $('#acUp').disabled = false; box('#upErr', friendly(err && err.message)); });
   }
   function doForgot(e) {
@@ -164,21 +193,30 @@
     sb.auth.updateUser({ password: p }).then(function (r) { if (r.error) { box('#npErr', friendly(r.error.message)); return; }
       $('#acNewPass').value = ''; closeAuth(); show(); msg('Password updated.'); SW.toast('Password updated'); });
   }
+  function soOpen() { var n = pending(); $('#soP').textContent = n ? n + ' unsynced change' + (n === 1 ? '' : 's') + ' will be uploaded first. Then your shifts are removed from this phone.' : 'Your shifts are saved to your account and will be removed from this phone.'; $('#soSheet').hidden = false; }
   function doSignOut() {
     $('#soSheet').hidden = true; inFlow = true;
-    var L = ['Saving unsynced changes', 'Signing out'];
-    steps('Signing out…', 'Saving your shifts on this phone', L, 0);
+    var L = ['Uploading unsynced changes', 'Removing shifts from this phone', 'Signing out'];
+    steps('Signing out…', 'Saving your shifts to your account', L, 0, 'Don’t close the app.');
     clearTimeout(timer);
     var t0 = Date.now();
     (user ? sync() : Promise.resolve({ ok: true })).then(function (r) {
-      r = r || last; var ok = r && r.ok;
-      steps('Signing out…', ok ? 'Your changes are saved to your account' : 'Couldn’t reach your account. Changes stay on this phone and sync next time you sign in.', L, 1);
-      return sb.auth.signOut({ scope: 'local' }).catch(function () {}).then(function () { return wait(Math.max(0, 900 - (Date.now() - t0))); }).then(function () { return ok; });
-    }).then(function (ok) {
-      user = null; inFlow = false; localStorage.removeItem(SKIP); show(); msg('Signed out. Your shifts are still on this phone.');
-      openAuth('signin', ok ? 'Signed out. Your shifts are still on this phone.' : 'Signed out. Your shifts are still on this phone. Unsynced changes will sync when you sign in again.');
-      if (user === null) { var em = $('#acWho').textContent; if (em) $('#acEmail').value = em; }
+      r = r || last; var n = pending();
+      if (r && r.ok && n === 0) return finishOut();
+      inFlow = false; view('sofail');
+      $('#sfSub').textContent = 'Couldn’t upload ' + n + ' change' + (n === 1 ? '' : 's') + (navigator.onLine === false ? ' because you’re offline' : '') + '. If you sign out now, ' + (n === 1 ? 'it' : 'they') + ' will be deleted from this phone.';
+      $('#sfForce').textContent = 'Sign out and delete ' + n + ' change' + (n === 1 ? '' : 's');
     });
+    function finishOut() {
+      var id = user && user.id;
+      steps('Signing out…', 'Your shifts are saved to your account', L, 1, 'Don’t close the app.');
+      wipe(id); SW.lock();
+      steps('Signing out…', 'Removed from this phone', L, 2, 'Don’t close the app.');
+      return sb.auth.signOut({ scope: 'local' }).catch(function () {}).then(function () { return wait(Math.max(0, 900 - (Date.now() - t0))); }).then(function () {
+        var em = user && user.email; user = null; inFlow = false; show();
+        openAuth('signin', 'Signed out. Your shifts are safe in your account and were removed from this phone.'); if (em) $('#acEmail').value = em; });
+    }
+    doSignOut.force = function () { inFlow = true; t0 = Date.now(); finishOut(); };
   }
   function bind() {
     $('#auFormIn').addEventListener('submit', doSignIn);
@@ -193,12 +231,13 @@
       var g = e.target.closest('[data-go]'); if (g) { clearErr(); var v = g.getAttribute('data-go');
         if (v === 'signup' && !$('#upEmail').value) $('#upEmail').value = $('#acEmail').value.trim();
         if (v === 'signin' && !$('#acEmail').value) $('#acEmail').value = $('#upEmail').value.trim(); view(v); return; }
-      if (e.target.closest('[data-skip]')) { localStorage.setItem(SKIP, '1'); closeAuth(); return; }
       var sh = e.target.closest('[data-show]'); if (sh) { var inp = document.getElementById(sh.getAttribute('data-show')), vis = inp.type === 'password'; inp.type = vis ? 'text' : 'password'; sh.textContent = vis ? 'Hide' : 'Show'; sh.setAttribute('aria-label', vis ? 'Hide password' : 'Show password'); }
     });
-    $('#acOpen').addEventListener('click', function () { openAuth('signin'); });
     $('#acSync').addEventListener('click', function () { sync(); });
-    $('#acOutBtn').addEventListener('click', function () { $('#soSheet').hidden = false; });
+    $('#acOutBtn').addEventListener('click', soOpen);
+    $('#sfStay').addEventListener('click', function () { closeAuth(); });
+    $('#sfRetry').addEventListener('click', doSignOut);
+    $('#sfForce').addEventListener('click', function () { if (doSignOut.force) doSignOut.force(); });
     [].forEach.call(document.querySelectorAll('[data-socancel]'), function (el) { el.addEventListener('click', function () { $('#soSheet').hidden = true; }); });
     $('#soOk').addEventListener('click', doSignOut);
     window.addEventListener('online', changed);
@@ -212,17 +251,18 @@
       if (inFlow && ev !== 'PASSWORD_RECOVERY') { if (session && session.user) user = session.user; return; }
       user = session && session.user || null; show();
       if (ev === 'PASSWORD_RECOVERY') { inFlow = false; clearErr(); view('newpw'); return; }
-      if (user && curView() && curView() !== 'newpw') closeAuth();
-      if (user && user.id !== was) sync();
+      if (user) { claim(user); if (curView() && curView() !== 'newpw') closeAuth(); if (user.id !== was) sync(); }
+      else if (ev === 'SIGNED_OUT') { SW.lock(); if (!curView()) openAuth('signin', 'Your session ended. Sign in to see your shifts.'); }
     });
     sb.auth.getSession().then(function (r) { var s = r && r.data && r.data.session;
-      if (s && (!user || user.id !== s.user.id)) { user = s.user; show(); sync(); }
-      if (s && curView() === 'signin' && !inFlow) closeAuth();
-      if (!s && !user && !inFlow && !localStorage.getItem(SKIP) && !curView()) openAuth('signin'); });
+      if (s) { if (!user || user.id !== s.user.id) { user = s.user; show(); } if (!inFlow) { claim(user); if (curView() && curView() !== 'newpw') closeAuth(); sync(); } return; }
+      if (!user && !inFlow && !SW.unlocked()) { if (curView() !== 'signin') openAuth('signin'); }
+      else if (!user && !inFlow && !(r && r.error) && navigator.onLine !== false) { SW.lock(); openAuth('signin'); }
+    }, function () { if (!SW.unlocked() && !inFlow) openAuth('signin'); });
   }
-  // Gate first paint: show sign-in right away unless the user chose to stay offline or a session is stored.
-  if (A && !localStorage.getItem(SKIP) && !hasSessKey()) view('signin');
+  // Gate first paint: nothing shows until a session owns this device's data.
+  if (A && !SW.unlocked()) { if (hasSessKey()) steps('Opening your account…', '', ['Checking your session', 'Loading your shifts'], 0, 'One moment.'); else view('signin'); }
   window.SideWorkSync = { changed: changed, sync: sync, open: function (v) { openAuth(v); } };
   if (window.supabase && window.supabase.createClient) start();
-  else { var t = document.createElement('script'); t.src = CDN; t.onload = start; t.onerror = function () { closeAuth(); $('#acctCard').hidden = false; if ($('#s-profile')) $('#s-profile').classList.add('acct'); $('#acOpen').hidden = true; msg('Account sign-in could not load. Your shifts are safe on this phone.'); }; document.head.appendChild(t); }
+  else { var t = document.createElement('script'); t.src = CDN; t.onload = start; t.onerror = function () { $('#acctCard').hidden = false; if ($('#s-profile')) $('#s-profile').classList.add('acct'); msg('Account service could not load. Working from this phone; sync will retry.'); if (!SW.unlocked()) { view('signin'); box('#inErr', 'Can’t reach your account right now. Check your connection.'); } }; document.head.appendChild(t); }
 })();
