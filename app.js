@@ -511,8 +511,8 @@
   var pfLast = null;
   function pfSheet(id, open) { var el = $('#' + id); el.hidden = !open; if (open) { pfLast = document.activeElement; var f = el.querySelector('[data-close]'); if (f) f.focus(); } else if (pfLast && pfLast.focus) pfLast.focus(); }
   /* ---------- paychecks (v31) ----------
-     From Mark's own paystubs. Stub "Reported Cash Tips" are really his CARD tips, so they're labeled "Card tips (on stub)".
-     Take-home for a period = net pay + card tips on stub + cash tips logged in Side Work for shifts in that period.
+     From Mark's own paystubs. Stub "Reported Cash Tips" are Denny's estimate from sales (reference only); real tips are the ones he logs.
+     Take-home for a period = net pay + all tips logged in Side Work for shifts in that period (cash + card + total-only).
      Synced to his account (paychecks table, own rows only). Local edits queue in K.payq until uploaded. */
   function okDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && iso(fromIso(s)) === s; }
   function payNorm(p) { if (!p || typeof p !== 'object') return null; var n = function (v) { return v == null || v === '' ? null : (isFinite(+v) ? r2(+v) : NaN); };
@@ -538,38 +538,41 @@
     if (f.sick != null && (isNaN(f.sick) || f.sick < 0 || f.sick > 1000)) return 'Sick hours should be between 0 and 1,000.';
     if ((list || []).some(function (p) { return p.id !== editId && p.start <= f.end && f.start <= p.end; })) return 'You already have a paystub covering some of those dates.';
     return ''; }
-  /* Compare one stub with the shifts logged in its period. Gentle flags: hours off by more than 0.25h, card tips off by more than $5. */
+  /* Compare one stub with the shifts logged in its period. Take-home uses the tips Mark logged (cash + card + any total-only tips);
+     the stub's "Reported Cash Tips" are Denny's estimate from sales, shown for reference only. Gentle flag: hours off by more than 0.25h. */
   function payRecon(p, list) { var a = { n: 0, hours: 0, card: 0, cash: 0, unsplit: 0, unsplitN: 0 };
     (list || []).forEach(function (s) { if (s.date < p.start || s.date > p.end) return; a.n++; a.hours += s.hours || 0; var t = tipsOf(s);
       if (splitKnown(s)) { a.card += s.card || 0; a.cash += s.cash || 0; } else if (t) { a.unsplit += t; a.unsplitN++; } });
-    a.hours = r2(a.hours); a.card = r2(a.card); a.cash = r2(a.cash); a.unsplit = r2(a.unsplit);
-    a.dh = r2(a.hours - p.hours); a.dc = r2(a.card - p.tips); a.flagH = Math.abs(a.dh) > 0.25 + 1e-9; a.flagC = Math.abs(a.dc) > 5 + 1e-9;
-    a.take = r2(p.net + p.tips + a.cash); a.perHour = p.hours > 0 ? a.take / p.hours : null; return a; }
+    a.hours = r2(a.hours); a.card = r2(a.card); a.cash = r2(a.cash); a.unsplit = r2(a.unsplit); a.tips = r2(a.cash + a.card + a.unsplit);
+    a.dh = r2(a.hours - p.hours); a.flagH = Math.abs(a.dh) > 0.25 + 1e-9; a.dEst = r2(a.tips - p.tips);
+    a.take = r2(p.net + a.tips); a.perHour = p.hours > 0 ? a.take / p.hours : null; return a; }
   function payYtd(list, sh, year) { list = list || []; if (!year) { var last = list.reduce(function (m, p) { return p.payDate > m ? p.payDate : m; }, ''); year = last ? last.slice(0, 4) : String(new Date().getFullYear()); }
-    var Y = { year: year, n: 0, hours: 0, wages: 0, tips: 0, taxes: 0, net: 0, cash: 0, take: 0, sick: null, sickAt: '' };
-    list.forEach(function (p) { if (p.payDate.slice(0, 4) !== year) return; var a = payRecon(p, sh); Y.n++; Y.hours += p.hours; Y.wages += p.wages; Y.tips += p.tips; Y.taxes += p.taxes; Y.net += p.net; Y.cash += a.cash; Y.take += a.take;
+    var Y = { year: year, n: 0, hours: 0, wages: 0, est: 0, taxes: 0, net: 0, logged: 0, take: 0, sick: null, sickAt: '' };
+    list.forEach(function (p) { if (p.payDate.slice(0, 4) !== year) return; var a = payRecon(p, sh); Y.n++; Y.hours += p.hours; Y.wages += p.wages; Y.est += p.tips; Y.taxes += p.taxes; Y.net += p.net; Y.logged += a.tips; Y.take += a.take;
       if (p.sick != null && p.payDate >= Y.sickAt) { Y.sick = p.sick; Y.sickAt = p.payDate; } });
-    ['hours', 'wages', 'tips', 'taxes', 'net', 'cash', 'take'].forEach(function (k) { Y[k] = r2(Y[k]); }); Y.total = r2(Y.wages + Y.tips); Y.perHour = Y.hours > 0 ? Y.take / Y.hours : null; return Y; }
+    ['hours', 'wages', 'est', 'taxes', 'net', 'logged', 'take'].forEach(function (k) { Y[k] = r2(Y[k]); }); Y.tips = Y.est; Y.total = r2(Y.wages + Y.est); Y.perHour = Y.hours > 0 ? Y.take / Y.hours : null; return Y; }
   function payRange(p) { var a = fromIso(p.start), b = fromIso(p.end); return MON[a.getMonth()] + ' ' + a.getDate() + ' – ' + (a.getMonth() === b.getMonth() ? '' : MON[b.getMonth()] + ' ') + b.getDate(); }
   function sgnH(v) { return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2) + 'h'; }
-  function sgnM(v) { return (v > 0 ? '+' : '') + money(v); }
   function chkRow(label, logged, stub, diff, flag, zero) { return '<div class="pay-chk-r"><span>' + label + '<small>logged ' + logged + ' · stub ' + stub + '</small></span><b class="pill sm ' + (flag ? 'warn' : 'ok') + '">' + (flag ? diff + ' off' : zero ? '✓ Matches' : '✓ Close (' + diff + ')') + '</b></div>'; }
-  function payCard(p) { var a = payRecon(p, shifts), flag = a.flagH || a.flagC;
+  function estLine(logged, est) { return '<p class="pay-est">You logged ' + money(logged) + ' in tips vs ' + money(est) + ' estimated by Denny’s</p>'; }
+  function payCard(p) { var a = payRecon(p, shifts);
     return '<div class="card pay-card" data-pid="' + esc(p.id) + '"><div class="pay-hd"><div><b>' + esc(payRange(p)) + '</b><small>Paid ' + esc(nice(p.payDate)) + '</small></div><button type="button" class="btn sm" data-pact="edit" aria-label="Edit paystub ' + esc(payRange(p)) + '">Edit</button></div>' +
       '<div class="pay-take"><span>Take-home</span><b>' + money(a.take) + '</b><em>' + rate(a.perHour) + '</em></div>' +
-      '<p class="pay-math">Net ' + money(p.net) + ' + card tips on stub ' + money(p.tips) + ' + cash logged ' + money(a.cash) + ' = ' + money(a.take) + ' ÷ ' + p.hours + 'h</p>' +
-      '<div class="in-lg"><span>Hours</span><b>' + p.hours + 'h</b></div><div class="in-lg"><span>Wages</span><b>' + money(p.wages) + '</b></div><div class="in-lg"><span>Card tips (on stub)</span><b>' + money(p.tips) + '</b></div>' +
-      '<div class="in-lg"><span>Taxes</span><b>−' + money(p.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(p.net) + '</b></div>' + (p.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + p.sick + 'h</b></div>' : '') +
+      '<p class="pay-math">Net ' + money(p.net) + ' + tips logged ' + money(a.tips) + ' = ' + money(a.take) + ' ÷ ' + p.hours + 'h</p>' +
+      '<div class="in-lg"><span>Hours</span><b>' + p.hours + 'h</b></div><div class="in-lg"><span>Wages</span><b>' + money(p.wages) + '</b></div>' +
+      '<div class="in-lg"><span>Taxes</span><b>−' + money(p.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(p.net) + '</b></div><div class="in-lg"><span>Tips logged in Side Work</span><b>' + money(a.tips) + '</b></div>' +
+      '<div class="in-lg ref"><span>Tips reported (Denny’s estimate)</span><b>' + money(p.tips) + '</b></div>' + (p.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + p.sick + 'h</b></div>' : '') +
+      estLine(a.tips, p.tips) +
       '<div class="pay-chk"><p class="lbl">Check vs Side Work · ' + a.n + ' shift' + (a.n === 1 ? '' : 's') + '</p>' +
-      chkRow('Hours', a.hours + 'h', p.hours + 'h', sgnH(a.dh), a.flagH, !a.dh) + chkRow('Card tips', money(a.card), money(p.tips), sgnM(a.dc), a.flagC, !a.dc) +
-      (a.unsplitN ? '<p class="pay-note">' + a.unsplitN + ' shift' + (a.unsplitN === 1 ? '' : 's') + ' (' + money(a.unsplit) + ') ha' + (a.unsplitN === 1 ? 's' : 've') + ' no cash/card split, so ' + (a.unsplitN === 1 ? 'it isn’t' : 'they aren’t') + ' counted. Add the split to make this match.</p>' : '') +
-      (flag ? '<p class="pay-note">Worth a look: ' + (a.flagH && a.flagC ? 'a shift, break or cash/card split may be logged differently than your stub.' : a.flagH ? 'a shift or break may be logged differently than your stub.' : 'a shift’s cash/card split may be off.') + '</p>' : '') + '</div></div>'; }
-  function renderPay() { if (!$('#payList')) return; var sorted = paychecks.slice().sort(function (a, b) { return a.payDate < b.payDate ? 1 : -1; }), Y = payYtd(paychecks, shifts), toCheck = sorted.filter(function (p) { var a = payRecon(p, shifts); return a.flagH || a.flagC; }).length;
+      chkRow('Hours', a.hours + 'h', p.hours + 'h', sgnH(a.dh), a.flagH, !a.dh) +
+      (a.flagH ? '<p class="pay-note">Worth a look: a shift or break may be logged differently than your stub.</p>' : '') + '</div></div>'; }
+  function renderPay() { if (!$('#payList')) return; var sorted = paychecks.slice().sort(function (a, b) { return a.payDate < b.payDate ? 1 : -1; }), Y = payYtd(paychecks, shifts), toCheck = sorted.filter(function (p) { return payRecon(p, shifts).flagH; }).length;
     $('#iPaySub').textContent = paychecks.length ? Y.year + ' take-home ' + rate(Y.perHour) + ' · ' + sorted.length + ' paystub' + (sorted.length === 1 ? '' : 's') + (toCheck ? ' · ' + toCheck + ' to check' : '') : 'Add a paystub to see your real take-home';
     $('#payYtd').innerHTML = !Y.n ? '<p class="muted s">No paystubs yet. Add one to see wages, taxes and take-home side by side.</p>' :
-      '<div class="pay-take big"><span>' + Y.year + ' take-home</span><b>' + money(Y.take) + '</b><em>' + rate(Y.perHour) + '</em></div><p class="pay-math">Net ' + money(Y.net) + ' + card tips on stub ' + money(Y.tips) + ' + cash logged ' + money(Y.cash) + ' over ' + Y.hours + 'h on ' + Y.n + ' stub' + (Y.n === 1 ? '' : 's') + '</p>' +
-      '<div class="in-lg"><span>Wages</span><b>' + money(Y.wages) + '</b></div><div class="in-lg"><span>Card tips (on stub)</span><b>' + money(Y.tips) + '</b></div><div class="in-lg"><span>Total pay</span><b>' + money(Y.total) + '</b></div>' +
-      '<div class="in-lg"><span>Taxes</span><b>−' + money(Y.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(Y.net) + '</b></div>' + (Y.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + Y.sick + 'h</b></div>' : '');
+      '<div class="pay-take big"><span>' + Y.year + ' take-home</span><b>' + money(Y.take) + '</b><em>' + rate(Y.perHour) + '</em></div><p class="pay-math">Net ' + money(Y.net) + ' + tips logged ' + money(Y.logged) + ' = ' + money(Y.take) + ' ÷ ' + Y.hours + 'h on ' + Y.n + ' stub' + (Y.n === 1 ? '' : 's') + '</p>' +
+      '<div class="in-lg"><span>Wages</span><b>' + money(Y.wages) + '</b></div>' +
+      '<div class="in-lg"><span>Taxes</span><b>−' + money(Y.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(Y.net) + '</b></div><div class="in-lg"><span>Tips logged in Side Work</span><b>' + money(Y.logged) + '</b></div>' +
+      '<div class="in-lg ref"><span>Tips reported (Denny’s estimate)</span><b>' + money(Y.est) + '</b></div><div class="in-lg ref"><span>Total pay on stub (wages + estimate)</span><b>' + money(Y.total) + '</b></div>' + estLine(Y.logged, Y.est) + (Y.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + Y.sick + 'h</b></div>' : '');
     $('#payList').innerHTML = sorted.map(payCard).join('') || '<p class="muted s">Your pay periods will show up here.</p>'; }
   function payFormVals() { var g = function (id) { return $('#' + id).value; };
     var f = { start: g('pyStart'), end: g('pyEnd'), payDate: g('pyDate'), hours: num(g('pyHours')), wages: num(g('pyWages')), tips: num(g('pyTips')), taxes: num(g('pyTaxes')), net: num(g('pyNet')), sick: num(g('pySick')) };

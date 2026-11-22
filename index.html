@@ -162,14 +162,14 @@
       <button type="button" class="btn primary wide" id="payAdd">+ Add paystub</button>
       <p class="lbl sec">Pay periods</p>
       <div id="payList"></div>
-      <p class="muted xs pf-note">Take-home = net pay + card tips on your stub + cash tips you logged for that period. Your stub calls card tips “Reported Cash Tips”. Tips logged without a cash/card split aren’t counted.</p>
+      <p class="muted xs pf-note">Take-home = net pay + the tips you logged in Side Work for that period. “Tips reported” is Denny’s estimate from your sales (your stub calls it “Reported Cash Tips”) and is shown for reference only.</p>
     </div>
     <div class="pf-sheet" id="paySheet" hidden role="dialog" aria-modal="true" aria-labelledby="payH"><div class="pf-sh">
       <div class="pf-grab"></div><div class="pf-shh"><h2 id="payH">Add paystub</h2><button type="button" class="btn sm" data-close>Cancel</button></div>
       <form id="payForm" novalidate autocomplete="off">
         <div class="grid2"><label class="field"><span>Period start</span><input type="date" id="pyStart"></label><label class="field"><span>Period end</span><input type="date" id="pyEnd"></label></div>
         <div class="grid2"><label class="field"><span>Pay date</span><input type="date" id="pyDate"></label><label class="field"><span>Hours</span><input type="text" inputmode="decimal" id="pyHours" enterkeyhint="next" placeholder="0.00"></label></div>
-        <div class="grid2"><label class="field"><span>Wages $</span><input type="text" inputmode="decimal" id="pyWages" enterkeyhint="next" placeholder="0.00"></label><label class="field"><span>Card tips (on stub) $</span><input type="text" inputmode="decimal" id="pyTips" enterkeyhint="next" placeholder="0.00"></label></div>
+        <div class="grid2"><label class="field"><span>Wages $</span><input type="text" inputmode="decimal" id="pyWages" enterkeyhint="next" placeholder="0.00"></label><label class="field"><span>Tips reported $ <em>(estimate)</em></span><input type="text" inputmode="decimal" id="pyTips" enterkeyhint="next" placeholder="0.00"></label></div>
         <div class="grid2"><label class="field"><span>Taxes $</span><input type="text" inputmode="decimal" id="pyTaxes" enterkeyhint="next" placeholder="0.00"></label><label class="field"><span>Net pay $ <em>(auto)</em></span><input type="text" inputmode="decimal" id="pyNet" enterkeyhint="next" placeholder="wages − taxes"></label></div>
         <label class="field"><span>Sick hours available <em>(optional)</em></span><input type="text" inputmode="decimal" id="pySick" enterkeyhint="done" placeholder="—"></label>
         <p class="muted s" id="pyHint"></p>

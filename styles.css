@@ -313,3 +313,6 @@ body.locked .hdr,body.locked main,body.locked .tabbar{display:none!important}
 html[data-theme=light] .pill.warn{color:#B45309}
 .pay-note{margin:6px 0 0;color:var(--text2);font-size:13px;line-height:1.45}
 @media (min-width:720px){#payList{display:grid;grid-template-columns:1fr 1fr;gap:12px}#payList .pay-card{margin:0}}
+/* v32: stub tips are Denny's estimate, reference only */
+.in-lg.ref span{color:var(--text2);font-weight:400}.in-lg.ref b{color:var(--text2);font-weight:500}
+.pay-est{margin:8px 0 2px;padding:8px 10px;border-radius:10px;background:var(--input);color:var(--text2);font-size:13px}
