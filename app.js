@@ -148,6 +148,8 @@
     var ymNow = t.slice(0, 7), PMf = agg(inMonth(prevYm(ymNow))), monthEmpty = !inMonth(ymNow).some(function (s) { return s.date <= t; }), fb = monthEmpty && PMf.n > 0, fbName = MONL[fromIso(prevYm(ymNow) + '-01').getMonth()];
     if (!L7.n && fb && PMf.rate != null) $('#dRate').textContent = PMf.rate.toFixed(2);
     $('#dRateSub').innerHTML = L7.n ? 'Last 7 days · ' + money(L7.take) + ' in ' + r2(L7.hours) + 'h' : fb ? 'No shifts in the last 7 days · showing <b>' + fbName + '</b> (' + PMf.n + ' shift' + (PMf.n === 1 ? '' : 's') + ', ' + r2(PMf.hours) + 'h)' : 'No shifts in the last 7 days';
+    var baseWage = defaultRole().wage, rateSrc = L7.n ? L7 : (fb ? PMf : null), split = $('#dRateSplit');
+    if (split) split.textContent = rateSrc && rateSrc.hours > 0 ? (rateSrc.tipRate != null ? 'Tips ' + rate(rateSrc.tipRate) + ' + base ' + rate(baseWage) : 'Base ' + rate(baseWage)) : '';
     setPill('#dRatePill', L7.n && P7.n ? pill(pct(L7.rate, P7.rate), 'vs last 7 days') : null);
     var byDay = {}; inRange(iso(addDays(now, -29)), t).forEach(function (s) { (byDay[s.date] = byDay[s.date] || []).push(s); });
     var pts = Object.keys(byDay).sort().map(function (d) { return { d: d, t: fromIso(d).getTime(), v: agg(byDay[d]).rate }; });
@@ -170,6 +172,7 @@
     /* weekly averages: last 4 weeks, only counting weeks since your first shift */
     var first = shifts.reduce(function (m, s) { return s.date < m ? s.date : m; }, t), from = iso(addDays(now, -27)); if (first > from) from = first;
     var weeks = Math.max(1, Math.ceil(((fromIso(t) - fromIso(from)) / 864e5 + 1) / 7)), W4 = agg(inRange(from, t)), w = weekInfo();
+    if ($('#dWkTake')) { $('#dWkTake').textContent = money(w.A.take); $('#dMoTake').textContent = money((fb ? PMf : A).take); }
     $('#dWeek').innerHTML = '<div class="ch"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 20v-6M12 20V9M18 20V4"/></svg></span><p class="lbl">Weekly averages</p></div>' +
       '<div class="wrow"><span>Shifts / week</span><b>' + (W4.n ? (W4.n / weeks).toFixed(1) : '—') + '</b></div><div class="wrow"><span>Hours / shift</span><b>' + (W4.n ? (W4.hours / W4.n).toFixed(1) : '—') + '</b></div><div class="wrow"><span>Earned / shift</span><b class="g">' + (W4.n ? money(W4.take / W4.n) : '—') + '</b></div>' +
       '<div class="thisweek"><p class="muted xs">This week</p><p><b class="g" id="wkTotal">' + money(w.A.take) + '</b> · <span id="wkRate">' + rate(w.A.rate) + '</span></p><button type="button" class="btn sm wide" id="copySum"' + (w.A.n ? '' : ' disabled') + '>Copy summary</button></div>';
@@ -330,7 +333,7 @@
     $('#goalBars').innerHTML = (bar('This week', cw, g.week) + bar('This month', cm, g.month)) || '<p class="muted s">Set a goal to see your progress.</p>'; }
 
   /* ---------- CSV ---------- */
-  function csvCell(v) { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) || /^[=+\-@]/.test(v) ? '"' + (/^[=+\-@]/.test(v) ? "'" : '') + v.replace(/"/g, '""') + '"' : v; }
+  function csvCell(v) { v = v == null ? '' : String(v); var formula = /^[\s\u0000\u0009\u000d\u000a]*[=+\-@\t\r]/.test(v); return formula || /[",\n\r]/.test(v) ? '"' + (formula ? "'" : '') + v.replace(/"/g, '""') + '"' : v; }
   function toCSV() { var H = ['date', 'shift', 'role', 'hourly_wage', 'clock_in', 'clock_out', 'hours', 'cash_tips', 'card_tips', 'total_tips', 'tipped_out', 'sales', 'wages', 'take_home', 'note'];
     var rows = shifts.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).map(function (s) { var sk = splitKnown(s);
       return [s.date, s.shift, s.role, s.wage.toFixed(2), s.clockIn, s.clockOut, s.hours, sk && s.cash != null ? s.cash.toFixed(2) : '', sk && s.card != null ? s.card.toFixed(2) : '', tipsOf(s) != null ? tipsOf(s).toFixed(2) : '', (s.tipout || 0).toFixed(2), s.sales != null ? s.sales.toFixed(2) : '', r2(wages(s)).toFixed(2), r2(take(s)).toFixed(2), s.note].map(csvCell).join(','); });
@@ -364,7 +367,7 @@
   function validate(f) { if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date || '')) return 'Pick a date.'; if (!f.role) return 'Pick a role.';
     if (!!f.clockIn !== !!f.clockOut) return 'Add both clock in and clock out.'; if (!f.shift) return 'Add your clock in and clock out times.';
     if (!(f.hours > 0) || f.hours > 24) return 'Hours should be between 0 and 24.';
-    if ([f.cash, f.card, f.tipout, f.sales].some(function (v) { return v != null && (isNaN(v) || v < 0); })) return 'Amounts should be numbers, 0 or more.'; return ''; }
+    if ([f.cash, f.card, f.tipout, f.sales].some(function (v) { return v != null && (isNaN(v) || v < 0 || v > 10000); })) return 'Amounts should be between 0 and 10,000.'; return ''; }
   function editingRec() { return editing ? shifts.find(function (x) { return x.id === editing; }) : null; }
   function formRate(name) { var e = editingRec(); if (e && e.role === name && okWage(formWage)) return formWage; var r = roleByName(name); return r ? r.wage : e && okWage(e.wage) ? e.wage : roles[0].wage; }
   function formTips(f) { var e = editingRec(); if (f.cash == null && f.card == null) return e && !splitKnown(e) ? { tips: tipsOf(e), cash: null, card: null } : { tips: null, cash: null, card: null };
@@ -381,7 +384,13 @@
       tipout: r2(f.tipout || 0), sales: f.sales == null ? null : r2(f.sales), note: f.note.slice(0, 200) };
     if (prev) { rec.id = prev.id; rec.createdAt = prev.createdAt; shifts[shifts.indexOf(prev)] = rec; } else { rec.id = uid(); rec.createdAt = new Date().toISOString(); shifts.push(rec); }
     if (pendingSched && !prev) { var ps = sched.find(function (x) { return x.id === pendingSched; }); if (ps) { ps.logged = rec.id; saveSched(); } }
-    save(); var msCel = celebrate(msBefore, milestones(shifts, lastBackup()), rec); if (!msCel) toast((prev ? 'Updated' : 'Saved') + ' · ' + money(take(rec)) + ' take-home · ' + rate(take(rec) / rec.hours)); resetForm(); period = rec.date.slice(0, 7) <= iso(new Date()).slice(0, 7) ? rec.date.slice(0, 7) : period; renderAll(); go(prev ? 'shifts' : 'dashboard'); }
+    save(); var msCel = celebrate(msBefore, milestones(shifts, lastBackup()), rec), snap = prev ? prev : null, newId = rec.id;
+    if (!msCel) toast((prev ? 'Updated' : 'Saved') + ' · ' + money(take(rec)) + ' take-home · ' + rate(take(rec) / rec.hours), { label: 'Undo', run: function () {
+      if (snap) { var i = shifts.findIndex(function (x) { return x.id === newId; }); if (i >= 0) shifts[i] = snap; }
+      else shifts = shifts.filter(function (x) { return x.id !== newId; });
+      save(); renderAll(); if (snap) { go('shifts'); toast('Edit undone'); } else { resetForm(); fillForm(rec); editing = null; go('log'); toast('Shift removed. You can save it again.'); }
+    } });
+    resetForm(); period = rec.date.slice(0, 7) <= iso(new Date()).slice(0, 7) ? rec.date.slice(0, 7) : period; renderAll(); go(prev ? 'shifts' : 'dashboard'); }
   function prefillFromLink() { var q = new URLSearchParams(location.search); if (!q.has('log') && !q.has('in')) return false;
     var d = q.get('log'), sh = q.get('shift'), rl = roleByName(q.get('role')), ci = normTime(q.get('in')), co = normTime(q.get('out'));
     resetForm(); fillForm({ date: /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : iso(new Date()), shift: !(ci && co) && SHIFTS.indexOf(sh) >= 0 ? sh : null, role: rl ? rl.name : null, clockIn: ci && co ? ci : null, clockOut: ci && co ? co : null, hours: ci && co ? spanHours(ci, co) : null });
@@ -401,7 +410,8 @@
   function go(name, sub) { name = ALIAS[name] || name; if (!document.getElementById('s-' + name)) name = 'dashboard'; screen = name; $('#hdrSub').textContent = SUB[name] || '';
     $$('.screen').forEach(function (s) { s.hidden = s.id !== 's-' + name; }); if ($('#iMain') && !$('#iMain').hasAttribute('data-eh')) { $('#iMain').hidden = false; $('#iMore').hidden = true; } if ($('#iSheet')) $('#iSheet').hidden = true; if ($('#pfMain')) { pfSub(false); $$('.pf-sheet').forEach(function (x) { x.hidden = true; }); }
     $$('#tabbar button').forEach(function (b) { var on = b.getAttribute('data-tab') === TAB[name]; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-    if (sub) setSeg('shiftsSeg', sub); if (history.replaceState) history.replaceState(null, '', location.pathname + '#' + name); window.scrollTo(0, 0); }
+    if (sub) setSeg('shiftsSeg', sub); if (history.replaceState) history.replaceState(null, '', location.pathname + '#' + name); window.scrollTo(0, 0);
+    if (name === 'log' && !editing && !pendingSched) setTimeout(function () { if ($('#fIn')) $('#fIn').focus(); }, 60); }
   function setSeg(id, v) { $$('#' + id + ' button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
     if (id === 'shiftsSeg') { $('#vList').hidden = v !== 'list'; $('#vCal').hidden = v !== 'cal'; }
  }
@@ -478,7 +488,9 @@
     $('#celChips').innerHTML = '<span>' + rec.hours + ' h</span>' + (t > 0 ? '<span>' + money(t / rec.hours) + '/hr in tips</span>' : '') + '<span>' + esc(rec.shift.charAt(0).toUpperCase() + rec.shift.slice(1)) + '</span>';
     var cf = $('#celConf'); cf.innerHTML = ''; if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { var c = ['#34D399', '#10B981', '#2DD4BF', '#FBBF24', '#F3F4F6'], s = ''; for (var i = 0; i < 28; i++) s += '<i style="left:' + ((i * 37) % 96 + 2) + '%;background:' + c[i % 5] + ';animation-delay:' + ((i * 53) % 600) + 'ms;--r:' + ((i * 47) % 360) + 'deg"></i>'; cf.innerHTML = s; }
     $('#cel').hidden = false; $('#celDone').focus(); return true; }
-  var toastT; function toast(m) { var t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 2600); }
+  var toastT; function toast(m, act) { var t = $('#toast'); t.textContent = ''; t.appendChild(document.createTextNode(m)); t.classList.toggle('act', !!(act && act.label && act.run));
+    if (act && act.label && act.run) { var b = document.createElement('button'); b.type = 'button'; b.className = 'toast-act'; b.textContent = act.label; b.addEventListener('click', function () { t.classList.remove('on', 'act'); act.run(); }); t.appendChild(b); }
+    t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on', 'act'); }, act ? 5000 : 2600); }
   function renderProfile() { if (!$('#pfStats')) return; var a = agg(shifts), m = milestones(shifts, lastBackup()), g = getJSON(K.goals) || {};
     $('#pfStats').innerHTML = '<div class="pf-st"><b>' + a.n + '</b><small>shift' + (a.n === 1 ? '' : 's') + ' logged</small></div><div class="pf-st g"><b>' + (a.rate == null ? '—' : '$' + a.rate.toFixed(2)) + '</b><small>avg per hour</small></div><div class="pf-st"><b>' + m.cur + '</b><small>week streak</small></div>';
     $('#pfWageV').textContent = roles.length ? '$' + roles[0].wage.toFixed(2) + '/hr' : '';
@@ -502,8 +514,13 @@
     $('#iGridBtn').addEventListener('click', function () { iSub(true, 'iGridH'); }); $('#iBestBtn').addEventListener('click', function () { iSub(true, 'iBestH'); }); $('#iBack').addEventListener('click', function () { iSub(false); });
     $('#logBack').addEventListener('click', function () { var was = editing; resetForm(); go(was ? 'shifts' : 'dashboard'); });
     $('#cancelEdit').addEventListener('click', function () { resetForm(); go('shifts'); });
-    ['#fIn', '#fOut'].forEach(function (s) { ['input', 'change'].forEach(function (ev) { $(s).addEventListener(ev, function () { guessShift(); var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)); if (sp != null) $('#fHours').value = sp; hoursHint(); updateTake(); }); }); });
+    ['#fIn', '#fOut'].forEach(function (s) { ['input', 'change'].forEach(function (ev) { $(s).addEventListener(ev, function () { guessShift(); var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)); if (sp != null) $('#fHours').value = sp; hoursHint(); updateTake();
+      if (ev === 'change' && normTime($('#fIn').value) && normTime($('#fOut').value) && !$('#fCash').value) $('#fCash').focus(); }); }); });
     $('#fHours').addEventListener('input', hoursHint); $('#form').addEventListener('input', function () { updateTake(); moreSummary(); }); $('#form').addEventListener('change', updateTake);
+    $('#form').addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; var id = e.target && e.target.id;
+      if (id === 'fIn') { e.preventDefault(); $('#fOut').focus(); }
+      else if (id === 'fOut' || id === 'fCash') { e.preventDefault(); $('#fCard').focus(); }
+      else if (id === 'fHours' || id === 'fTipout') { e.preventDefault(); (id === 'fHours' ? $('#fTipout') : $('#fSales')).focus(); } });
     $('#form').addEventListener('submit', function (e) { e.preventDefault(); var f = readForm(), err = validate(f); $('#formErr').textContent = err; if (/Hours|date/.test(err)) $('#more').open = true; if (!err) commit(f); });
     $('#hList').addEventListener('click', onShiftAction); $('#hList').addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.shift[data-act]')) { e.preventDefault(); onShiftAction(e); } });
     $('#roleFilter').addEventListener('click', function (e) { var b = e.target.closest('[data-rf]'); if (b) { roleFilter = b.getAttribute('data-rf'); renderHistory(); } });
@@ -546,7 +563,7 @@
     window.addEventListener('hashchange', function () { var k = (location.hash || '').slice(1); if (TAB[k] && (ALIAS[k] || k) !== screen) go(k); });
     var h = (location.hash || '').slice(1); if (prefillFromLink()) { renderAll(); go('log'); } else go(TAB[h] ? h : 'dashboard');
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {}); }
-  window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
+  window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, csvCell: csvCell, validate: validate, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
   /* Optional cloud sync bridge (sync.js). Never writes unless sync.js is configured and signed in. */
   window.SideWork = { key: K.shifts, normalize: migrate, get: function () { return shifts.slice(); },
     set: function (list) { shifts = list.map(migrate).filter(Boolean); setJSON(K.shifts, shifts); renderAll(); }, toast: function (m) { toast(m); }, userKeys: USERK.slice(), owner: OWNER,

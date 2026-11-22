@@ -86,6 +86,14 @@ details#more{margin:4px 0 8px}details#more summary{cursor:pointer;color:var(--te
 .tabbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.tabbar button.on{color:var(--primary)}
 .toast{position:fixed;left:50%;bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 14px);transform:translateX(-50%) translateY(20px);opacity:0;background:var(--input);border:1px solid var(--border);padding:10px 14px;border-radius:12px;font-size:14px;transition:.25s;pointer-events:none;z-index:40;max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.act{pointer-events:auto;display:flex;align-items:center;gap:12px;text-align:left}
+.toast-act{margin:0;border:0;background:none;color:var(--primary);font-weight:700;font-size:14px;padding:4px 0;cursor:pointer}
+.rate-split{margin:6px 0 0;font-size:13.5px;color:var(--text2);line-height:1.35}
+.totals-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 2px}
+.tcell{background:var(--input);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.tcell .k{margin:0;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3)}
+.tcell .money{margin:2px 0 0;font-size:20px;line-height:1.2;color:var(--money)}
+.au-from{margin:12px 0 0;font-size:13.5px;color:var(--text3);line-height:1.45}
 @media (max-width:370px){.avgs{grid-template-columns:repeat(2,1fr);row-gap:12px}.avgs>div:nth-child(2){border:0}}
 [hidden]{display:none!important}
 /* ---- v12 Performance Overview redesign ---- */

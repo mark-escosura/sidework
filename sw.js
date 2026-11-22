@@ -1,5 +1,5 @@
 /* Side Work service worker: full offline cache. Bump VERSION when files change. */
-var VERSION = 'sidework-v28';
+var VERSION = 'sidework-v29';
 var ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'config.js', 'sync.js', 'admin.js', 'vendor/supabase.js', 'manifest.json', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'favicon-32.png', 'apple-touch-icon-dark.png', 'icon-192-dark.png', 'icon-512-dark.png', 'favicon-32-dark.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(ASSETS); }).then(function () { return self.skipWaiting(); }));
@@ -15,7 +15,8 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(function (res) {
-      var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put('index.html', copy); }); return res;
+      if (res && res.ok) { var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put('index.html', copy); }); }
+      return res;
     }).catch(function () { return caches.match('index.html').then(function (r) { return r || caches.match('./'); }); }));
     return;
   }

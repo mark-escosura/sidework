@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Side Work">
 <meta name="description" content="Side Work tip tracker. Your shifts stay on your phone.">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://ohqffhuflezyaxqgqcom.supabase.co wss://ohqffhuflezyaxqgqcom.supabase.co; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://ohqffhuflezyaxqgqcom.supabase.co wss://ohqffhuflezyaxqgqcom.supabase.co; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
 <title>Side Work · Tip Tracker</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" id="atiLink" href="apple-touch-icon.png">
@@ -38,6 +38,11 @@
         <p class="lbl">Effective hourly rate <span class="info" title="Wages + tips − tip-out, divided by hours. Last 7 days.">ⓘ</span></p>
         <div class="rate-row"><p class="money xl"><span id="dRate">—</span><small>/hr</small></p><span class="pill" id="dRatePill" hidden></span></div>
         <p class="muted s" id="dRateSub"></p>
+        <p class="rate-split" id="dRateSplit"></p>
+        <div class="totals-row" id="dTotals">
+          <div class="tcell"><p class="k">This week</p><p class="money m" id="dWkTake">—</p></div>
+          <div class="tcell"><p class="k">This month</p><p class="money m" id="dMoTake">—</p></div>
+        </div>
         <div class="chart" id="dChart"></div>
       </div>
       <div class="card">
@@ -96,11 +101,11 @@
     <div class="h1row"><h1 id="logTitle">Log shift</h1><button class="btn ghost sm" id="logBack">Close</button></div>
     <form id="form" class="card" novalidate>
       <div class="chips" id="roleChips" role="radiogroup" aria-label="Role"></div>
-      <div class="grid2"><label class="field"><span>Clock in</span><input type="time" id="fIn"></label><label class="field"><span>Clock out</span><input type="time" id="fOut"></label></div>
+      <div class="grid2"><label class="field"><span>Clock in</span><input type="time" id="fIn" enterkeyhint="next"></label><label class="field"><span>Clock out</span><input type="time" id="fOut" enterkeyhint="next"></label></div>
       <p class="autoshift" id="autoShift" aria-live="polite"></p>
       <div class="grid2">
-        <label class="field big"><span>Cash tips $</span><input type="text" inputmode="decimal" id="fCash" placeholder="0" autocomplete="off"></label>
-        <label class="field big"><span>Card tips $</span><input type="text" inputmode="decimal" id="fCard" placeholder="0" autocomplete="off"></label>
+        <label class="field big"><span>Cash tips $</span><input type="text" inputmode="decimal" id="fCash" placeholder="0" autocomplete="off" enterkeyhint="next"></label>
+        <label class="field big"><span>Card tips $</span><input type="text" inputmode="decimal" id="fCard" placeholder="0" autocomplete="off" enterkeyhint="done"></label>
       </div>
       <p class="muted xs" id="legacyNote" hidden></p>
       <details id="more"><summary>More <span class="muted s" id="moreSum"></span></summary>
@@ -279,12 +284,13 @@
    <div class="au-f"><label for="upPass">Password</label><div class="au-pw"><input class="au-in" type="password" id="upPass" autocomplete="new-password"><button type="button" class="au-show" data-show="upPass" aria-label="Show password">Show</button></div><div class="au-meter" id="upMeter"><i></i><i></i><i></i><i></i></div><p class="au-hint" id="upHint">At least 8 characters</p></div>
    <div class="au-f"><label for="upPass2">Confirm password</label><div class="au-pw"><input class="au-in" type="password" id="upPass2" autocomplete="new-password"><button type="button" class="au-show" data-show="upPass2" aria-label="Show password">Show</button></div></div>
    <button type="submit" class="au-btn" id="acUp">Create account</button>
+   <p class="au-from">We’ll email you a confirmation link from Side Work. Check spam if you don’t see it.</p>
   </form>
   <p class="au-switch">Already have an account? <button type="button" class="au-link" data-go="signin">Sign in</button></p>
   <div class="au-foot"><p class="au-priv">An account keeps your shifts safe and synced. Nothing shows on this phone until you sign in.</p></div>
  </div>
  <div class="au-v" data-v="check" hidden>
-  <div class="au-center"><div class="au-mail"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg></div><h1>Check your email</h1><p class="au-sub">We sent a confirmation link to<br><b id="ckEmail"></b>. Tap it to finish creating your account, then sign in.</p></div>
+  <div class="au-center"><div class="au-mail"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg></div><h1>Check your email</h1><p class="au-sub">We sent a confirmation email from <b>Side Work</b> to<br><b id="ckEmail"></b>.</p><p class="au-sub au-sm">Open it and tap the link to finish creating your account. Then come back here and sign in.</p><p class="au-from">It can take a minute to arrive. If you don’t see it, check your spam or junk folder. The sender may say “Side Work” or “Supabase.”</p></div>
   <div class="au-stack"><button type="button" class="au-btn" data-go="signin">Back to sign in</button><button type="button" class="au-ghost" id="ckResend">Resend email</button></div>
   <p class="au-note" id="ckNote" role="status" hidden></p>
   <p class="au-switch">Wrong address? <button type="button" class="au-link" data-go="signup">Change email</button></p>

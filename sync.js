@@ -124,6 +124,13 @@
     if (/fetch|network/i.test(m)) return 'Can’t reach your account right now. Check your connection.';
     return m;
   }
+  function appUrl() { var p = (location.pathname || '/').replace(/index\.html$/i, ''); if (p.charAt(p.length - 1) !== '/') p += '/'; return location.origin + p; }
+  function authLink() { var b = (location.hash || '') + '&' + (location.search || '');
+    if (/error=/.test(b) && !/access_token=/.test(b)) return 'error';
+    if (/type=recovery/.test(b)) return 'recovery';
+    if (/type=signup/.test(b)) return 'signup';
+    return ''; }
+  function cleanAuthUrl() { if (history.replaceState && (/access_token=|error=|type=signup|type=recovery/.test(location.hash + location.search))) history.replaceState(null, '', location.pathname + location.search.replace(/[?&](error|error_code|error_description|type)=[^&]*/g, '').replace(/[?&]$/, '').replace(/^[?&]/, '?') ); }
   function openAuth(v, note) { clearErr(); view(v || 'signin'); if (note) box('#inNote', note); }
   function steps(title, sub, list, i, foot) {
     view('busy'); $('#bzTitle').textContent = title; $('#bzSub').textContent = sub || ''; $('#bzFoot').textContent = foot || 'Nothing is deleted from this phone.';
@@ -173,7 +180,7 @@
     if (p1.length < 8) { box('#upErr', 'Password needs at least 8 characters.'); $('#upPass').classList.add('au-bad'); return; }
     if (p1 !== p2) { box('#upErr', 'Passwords don’t match.'); $('#upPass2').classList.add('au-bad'); return; }
     inFlow = true; $('#acUp').disabled = true;
-    sb.auth.signUp({ email: em, password: p1, options: { emailRedirectTo: location.origin + location.pathname } }).then(function (r) {
+    sb.auth.signUp({ email: em, password: p1, options: { emailRedirectTo: appUrl() } }).then(function (r) {
       $('#acUp').disabled = false;
       if (r.error) { inFlow = false; box('#upErr', friendly(r.error.message)); return; }
       $('#upPass').value = $('#upPass2').value = ''; meter();
@@ -185,7 +192,7 @@
     if (e) e.preventDefault(); clearErr();
     var em = $('#fgEmail').value.trim(); if (!EMAIL_RE.test(em)) { box('#fgErr', 'Enter a valid email.'); $('#fgEmail').classList.add('au-bad'); return; }
     $('#fgSend').disabled = true;
-    sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname }).then(function (r) {
+    sb.auth.resetPasswordForEmail(em, { redirectTo: appUrl() }).then(function (r) {
       $('#fgSend').disabled = false; if (r.error) box('#fgErr', friendly(r.error.message)); else box('#fgNote', 'Reset link sent to ' + em + '. Open it on this phone.'); });
   }
   function doNewPw(e) {
@@ -227,7 +234,7 @@
     $('#upPass').addEventListener('input', meter);
     $('#acForgot').addEventListener('click', function () { clearErr(); $('#fgEmail').value = $('#acEmail').value.trim(); view('forgot'); });
     $('#ckResend').addEventListener('click', function () { var em = $('#ckEmail').textContent, b = $('#ckResend'); if (!sb.auth.resend) return;
-      b.disabled = true; sb.auth.resend({ type: 'signup', email: em, options: { emailRedirectTo: location.origin + location.pathname } }).then(function (r) { box('#ckNote', r && r.error ? friendly(r.error.message) : 'Sent again. You can resend in 60 seconds.'); setTimeout(function () { b.disabled = false; }, 60000); }); });
+      b.disabled = true; sb.auth.resend({ type: 'signup', email: em, options: { emailRedirectTo: appUrl() } }).then(function (r) { box('#ckNote', r && r.error ? friendly(r.error.message) : 'Sent again. You can resend in 60 seconds.'); setTimeout(function () { b.disabled = false; }, 60000); }); });
     A.addEventListener('click', function (e) {
       var g = e.target.closest('[data-go]'); if (g) { clearErr(); var v = g.getAttribute('data-go');
         if (v === 'signup' && !$('#upEmail').value) $('#upEmail').value = $('#acEmail').value.trim();
@@ -255,8 +262,18 @@
       if (user) { claim(user); if (curView() && curView() !== 'newpw') closeAuth(); if (user.id !== was) sync(); }
       else if (ev === 'SIGNED_OUT') { SW.lock(); if (!curView()) openAuth('signin', 'Your session ended. Sign in to see your shifts.'); }
     });
+    var kind = authLink();
+    if (kind === 'error' && !inFlow) { var desc = (new URLSearchParams((location.search || '') + '&' + (location.hash || '').replace(/^#/, ''))).get('error_description') || '';
+      openAuth('signin', /expired|invalid/i.test(desc) ? 'That confirmation link is invalid or has expired. You can resend it from Create account, then sign in.' : 'That email link didn’t work. Try signing in, or request a new link.');
+      cleanAuthUrl(); }
     sb.auth.getSession().then(function (r) { var s = r && r.data && r.data.session;
-      if (s) { if (!user || user.id !== s.user.id) { user = s.user; show(); } if (!inFlow) { claim(user); if (curView() && curView() !== 'newpw') closeAuth(); sync(); } return; }
+      if (s) { if (!user || user.id !== s.user.id) { user = s.user; show(); }
+        if (kind === 'signup' && !inFlow) { inFlow = true; claim(user); show();
+          $('#wbTitle').textContent = 'You’re in'; $('#wbSub').textContent = 'Your email is confirmed. Opening Overview…';
+          view('welcome'); sync(); wait(1400).then(function () { inFlow = false; cleanAuthUrl(); closeAuth(); var tb = document.querySelector('#tabbar [data-tab=dashboard]'); if (tb) tb.click(); scrollTo(0, 0); });
+          return; }
+        if (!inFlow) { claim(user); if (curView() && curView() !== 'newpw') closeAuth(); sync(); } return; }
+      if (kind === 'signup' && !inFlow) { openAuth('signin', 'Your email is confirmed. Sign in to start logging shifts.'); cleanAuthUrl(); return; }
       if (!user && !inFlow && !SW.unlocked()) { if (curView() !== 'signin') openAuth('signin'); }
       else if (!user && !inFlow && !(r && r.error) && navigator.onLine !== false) { SW.lock(); openAuth('signin'); }
     }, function () { if (!SW.unlocked() && !inFlow) openAuth('signin'); });
