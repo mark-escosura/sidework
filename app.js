@@ -512,7 +512,7 @@
   function pfSheet(id, open) { var el = $('#' + id); el.hidden = !open; if (open) { pfLast = document.activeElement; var f = el.querySelector('[data-close]'); if (f) f.focus(); } else if (pfLast && pfLast.focus) pfLast.focus(); }
   /* ---------- paychecks (v31) ----------
      From Mark's own paystubs. Stub "Reported Cash Tips" are Denny's estimate from sales (reference only); real tips are the ones he logs.
-     Take-home for a period = net pay + all tips logged in Side Work for shifts in that period (cash + card + total-only).
+     Take-home for a period = net pay + all tips logged in Side Work for shifts in that period (cash + card + total-only) minus tip-outs logged.
      Synced to his account (paychecks table, own rows only). Local edits queue in K.payq until uploaded. */
   function okDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && iso(fromIso(s)) === s; }
   function payNorm(p) { if (!p || typeof p !== 'object') return null; var n = function (v) { return v == null || v === '' ? null : (isFinite(+v) ? r2(+v) : NaN); };
@@ -540,17 +540,17 @@
     return ''; }
   /* Compare one stub with the shifts logged in its period. Take-home uses the tips Mark logged (cash + card + any total-only tips);
      the stub's "Reported Cash Tips" are Denny's estimate from sales, shown for reference only. Gentle flag: hours off by more than 0.25h. */
-  function payRecon(p, list) { var a = { n: 0, hours: 0, card: 0, cash: 0, unsplit: 0, unsplitN: 0 };
-    (list || []).forEach(function (s) { if (s.date < p.start || s.date > p.end) return; a.n++; a.hours += s.hours || 0; var t = tipsOf(s);
+  function payRecon(p, list) { var a = { n: 0, hours: 0, card: 0, cash: 0, unsplit: 0, unsplitN: 0, tipout: 0 };
+    (list || []).forEach(function (s) { if (s.date < p.start || s.date > p.end) return; a.n++; a.hours += s.hours || 0; a.tipout += s.tipout || 0; var t = tipsOf(s);
       if (splitKnown(s)) { a.card += s.card || 0; a.cash += s.cash || 0; } else if (t) { a.unsplit += t; a.unsplitN++; } });
-    a.hours = r2(a.hours); a.card = r2(a.card); a.cash = r2(a.cash); a.unsplit = r2(a.unsplit); a.tips = r2(a.cash + a.card + a.unsplit);
+    a.hours = r2(a.hours); a.card = r2(a.card); a.cash = r2(a.cash); a.unsplit = r2(a.unsplit); a.tipout = r2(a.tipout); a.tips = r2(a.cash + a.card + a.unsplit);
     a.dh = r2(a.hours - p.hours); a.flagH = Math.abs(a.dh) > 0.25 + 1e-9; a.dEst = r2(a.tips - p.tips);
-    a.take = r2(p.net + a.tips); a.perHour = p.hours > 0 ? a.take / p.hours : null; return a; }
+    a.take = r2(p.net + a.tips - a.tipout); a.perHour = p.hours > 0 ? a.take / p.hours : null; return a; }
   function payYtd(list, sh, year) { list = list || []; if (!year) { var last = list.reduce(function (m, p) { return p.payDate > m ? p.payDate : m; }, ''); year = last ? last.slice(0, 4) : String(new Date().getFullYear()); }
-    var Y = { year: year, n: 0, hours: 0, wages: 0, est: 0, taxes: 0, net: 0, logged: 0, take: 0, sick: null, sickAt: '' };
-    list.forEach(function (p) { if (p.payDate.slice(0, 4) !== year) return; var a = payRecon(p, sh); Y.n++; Y.hours += p.hours; Y.wages += p.wages; Y.est += p.tips; Y.taxes += p.taxes; Y.net += p.net; Y.logged += a.tips; Y.take += a.take;
+    var Y = { year: year, n: 0, hours: 0, wages: 0, est: 0, taxes: 0, net: 0, logged: 0, tipout: 0, take: 0, sick: null, sickAt: '' };
+    list.forEach(function (p) { if (p.payDate.slice(0, 4) !== year) return; var a = payRecon(p, sh); Y.n++; Y.hours += p.hours; Y.wages += p.wages; Y.est += p.tips; Y.taxes += p.taxes; Y.net += p.net; Y.logged += a.tips; Y.tipout += a.tipout; Y.take += a.take;
       if (p.sick != null && p.payDate >= Y.sickAt) { Y.sick = p.sick; Y.sickAt = p.payDate; } });
-    ['hours', 'wages', 'est', 'taxes', 'net', 'logged', 'take'].forEach(function (k) { Y[k] = r2(Y[k]); }); Y.tips = Y.est; Y.total = r2(Y.wages + Y.est); Y.perHour = Y.hours > 0 ? Y.take / Y.hours : null; return Y; }
+    ['hours', 'wages', 'est', 'taxes', 'net', 'logged', 'tipout', 'take'].forEach(function (k) { Y[k] = r2(Y[k]); }); Y.tips = Y.est; Y.total = r2(Y.wages + Y.est); Y.perHour = Y.hours > 0 ? Y.take / Y.hours : null; return Y; }
   function payRange(p) { var a = fromIso(p.start), b = fromIso(p.end); return MON[a.getMonth()] + ' ' + a.getDate() + ' – ' + (a.getMonth() === b.getMonth() ? '' : MON[b.getMonth()] + ' ') + b.getDate(); }
   function sgnH(v) { return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2) + 'h'; }
   function chkRow(label, logged, stub, diff, flag, zero) { return '<div class="pay-chk-r"><span>' + label + '<small>logged ' + logged + ' · stub ' + stub + '</small></span><b class="pill sm ' + (flag ? 'warn' : 'ok') + '">' + (flag ? diff + ' off' : zero ? '✓ Matches' : '✓ Close (' + diff + ')') + '</b></div>'; }
@@ -558,9 +558,9 @@
   function payCard(p) { var a = payRecon(p, shifts);
     return '<div class="card pay-card" data-pid="' + esc(p.id) + '"><div class="pay-hd"><div><b>' + esc(payRange(p)) + '</b><small>Paid ' + esc(nice(p.payDate)) + '</small></div><button type="button" class="btn sm" data-pact="edit" aria-label="Edit paystub ' + esc(payRange(p)) + '">Edit</button></div>' +
       '<div class="pay-take"><span>Take-home</span><b>' + money(a.take) + '</b><em>' + rate(a.perHour) + '</em></div>' +
-      '<p class="pay-math">Net ' + money(p.net) + ' + tips logged ' + money(a.tips) + ' = ' + money(a.take) + ' ÷ ' + p.hours + 'h</p>' +
+      '<p class="pay-math">Net ' + money(p.net) + ' + tips ' + money(a.tips) + (a.tipout ? ' − tip-out ' + money(a.tipout) : '') + ' = ' + money(a.take) + ' ÷ ' + p.hours + 'h</p>' +
       '<div class="in-lg"><span>Hours</span><b>' + p.hours + 'h</b></div><div class="in-lg"><span>Wages</span><b>' + money(p.wages) + '</b></div>' +
-      '<div class="in-lg"><span>Taxes</span><b>−' + money(p.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(p.net) + '</b></div><div class="in-lg"><span>Tips logged in Side Work</span><b>' + money(a.tips) + '</b></div>' +
+      '<div class="in-lg"><span>Taxes</span><b>−' + money(p.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(p.net) + '</b></div><div class="in-lg"><span>Tips logged in Side Work</span><b>' + money(a.tips) + '</b></div>' + (a.tipout ? '<div class="in-lg"><span>Tipped out</span><b>−' + money(a.tipout) + '</b></div>' : '') +
       '<div class="in-lg ref"><span>Tips reported (Denny’s estimate)</span><b>' + money(p.tips) + '</b></div>' + (p.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + p.sick + 'h</b></div>' : '') +
       estLine(a.tips, p.tips) +
       '<div class="pay-chk"><p class="lbl">Check vs Side Work · ' + a.n + ' shift' + (a.n === 1 ? '' : 's') + '</p>' +
@@ -569,9 +569,9 @@
   function renderPay() { if (!$('#payList')) return; var sorted = paychecks.slice().sort(function (a, b) { return a.payDate < b.payDate ? 1 : -1; }), Y = payYtd(paychecks, shifts), toCheck = sorted.filter(function (p) { return payRecon(p, shifts).flagH; }).length;
     $('#iPaySub').textContent = paychecks.length ? Y.year + ' take-home ' + rate(Y.perHour) + ' · ' + sorted.length + ' paystub' + (sorted.length === 1 ? '' : 's') + (toCheck ? ' · ' + toCheck + ' to check' : '') : 'Add a paystub to see your real take-home';
     $('#payYtd').innerHTML = !Y.n ? '<p class="muted s">No paystubs yet. Add one to see wages, taxes and take-home side by side.</p>' :
-      '<div class="pay-take big"><span>' + Y.year + ' take-home</span><b>' + money(Y.take) + '</b><em>' + rate(Y.perHour) + '</em></div><p class="pay-math">Net ' + money(Y.net) + ' + tips logged ' + money(Y.logged) + ' = ' + money(Y.take) + ' ÷ ' + Y.hours + 'h on ' + Y.n + ' stub' + (Y.n === 1 ? '' : 's') + '</p>' +
+      '<div class="pay-take big"><span>' + Y.year + ' take-home</span><b>' + money(Y.take) + '</b><em>' + rate(Y.perHour) + '</em></div><p class="pay-math">Net ' + money(Y.net) + ' + tips ' + money(Y.logged) + (Y.tipout ? ' − tip-out ' + money(Y.tipout) : '') + ' = ' + money(Y.take) + ' ÷ ' + Y.hours + 'h on ' + Y.n + ' stub' + (Y.n === 1 ? '' : 's') + '</p>' +
       '<div class="in-lg"><span>Wages</span><b>' + money(Y.wages) + '</b></div>' +
-      '<div class="in-lg"><span>Taxes</span><b>−' + money(Y.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(Y.net) + '</b></div><div class="in-lg"><span>Tips logged in Side Work</span><b>' + money(Y.logged) + '</b></div>' +
+      '<div class="in-lg"><span>Taxes</span><b>−' + money(Y.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(Y.net) + '</b></div><div class="in-lg"><span>Tips logged in Side Work</span><b>' + money(Y.logged) + '</b></div>' + (Y.tipout ? '<div class="in-lg"><span>Tipped out</span><b>−' + money(Y.tipout) + '</b></div>' : '') +
       '<div class="in-lg ref"><span>Tips reported (Denny’s estimate)</span><b>' + money(Y.est) + '</b></div><div class="in-lg ref"><span>Total pay on stub (wages + estimate)</span><b>' + money(Y.total) + '</b></div>' + estLine(Y.logged, Y.est) + (Y.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + Y.sick + 'h</b></div>' : '');
     $('#payList').innerHTML = sorted.map(payCard).join('') || '<p class="muted s">Your pay periods will show up here.</p>'; }
   function payFormVals() { var g = function (id) { return $('#' + id).value; };
