@@ -299,3 +299,17 @@ body.locked .hdr,body.locked main,body.locked .tabbar{display:none!important}
 .ad-code{width:100%;font-size:24px;letter-spacing:.3em;text-align:center;background:var(--input);border:1px solid var(--border);border-radius:12px;padding:12px;margin:8px 0 12px}
 .ad-qr{text-align:center}.ad-qr img{background:#fff;border-radius:12px;padding:8px;margin:6px auto}.ad-qr code{word-break:break-all}
 .ad-err{color:var(--danger);font-size:14px;margin:10px 0}
+/* v31 paychecks */
+#payAdd{margin:12px 0 2px}
+.pay-card{padding:14px 16px;margin-bottom:12px}
+.pay-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.pay-hd b{display:block;font-size:17px}.pay-hd small{color:var(--text2);font-size:13px}
+.pay-take{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:4px 0 2px}.pay-take span{color:var(--text2);font-size:14px;flex:1 0 100%}.pay-take b{font-size:28px;font-weight:700;letter-spacing:-.02em;color:var(--money);font-variant-numeric:tabular-nums}.pay-take em{font-style:normal;color:var(--teal);font-weight:600;font-size:16px}
+.pay-take.big b{font-size:34px}
+.pay-math{margin:2px 0 10px;color:var(--text2);font-size:12.5px;line-height:1.45}
+.pay-card .in-lg b,.in-tips .in-lg b{font-variant-numeric:tabular-nums}
+.pay-chk{border-top:1px solid var(--border);margin-top:10px;padding-top:10px}.pay-chk .lbl{margin-bottom:4px}
+.pay-chk-r{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0}.pay-chk-r span{font-size:14px}.pay-chk-r small{display:block;color:var(--text2);font-size:12.5px;margin-top:1px}
+.pay-chk-r .pill{margin:0;white-space:nowrap}.pill.ok{background:rgba(16,185,129,.14);color:var(--money)}.pill.warn{background:rgba(245,158,11,.15);color:#FBBF24}
+html[data-theme=light] .pill.warn{color:#B45309}
+.pay-note{margin:6px 0 0;color:var(--text2);font-size:13px;line-height:1.45}
+@media (min-width:720px){#payList{display:grid;grid-template-columns:1fr 1fr;gap:12px}#payList .pay-card{margin:0}}

@@ -67,9 +67,23 @@
       return p.then(function (u) { if (u && u.error) throw u.error;
         var ns = {}; local.forEach(function (s) { ns[s.id] = sig(s); }); setMeta({ uid: user.id, snap: ns, at: new Date().toISOString() });
         status('Synced ' + fmt(new Date()) + ' · ' + local.length + ' shift' + (local.length === 1 ? '' : 's'));
-        last = { ok: true, n: local.length, pushed: ups.length, pulled: remote.length }; });
+        last = { ok: true, n: local.length, pushed: ups.length, pulled: remote.length };
+        return syncPay().catch(function (e) { status('Synced shifts · paychecks not synced (' + ((e && e.message) || 'error') + '). Will retry.'); }); });
     }).catch(function (e) { last = { ok: false, error: (e && e.message) || 'error' }; status('Not synced · ' + last.error + '. Will retry.'); })
       .then(function () { busy = false; if (again) { again = false; return sync1(prog); } return last; });
+  }
+  /* v31 paychecks: upload queued edits first (own rows only, RLS), then pull the account's list. Failures keep the queue for next time. */
+  var PF = [['id', 'id'], ['payDate', 'pay_date'], ['start', 'period_start'], ['end', 'period_end'], ['hours', 'hours'], ['wages', 'wages'], ['tips', 'stub_tips'], ['taxes', 'taxes'], ['net', 'net'], ['sick', 'sick_hours'], ['note', 'note']];
+  function payRow(p) { var r = { user_id: user.id, updated_at: new Date().toISOString() }; PF.forEach(function (f) { r[f[1]] = p[f[0]] == null ? null : p[f[0]]; }); if (typeof r.note === 'string') r.note = r.note.slice(0, 500); return r; }
+  function payFrom(r) { var p = {}; PF.forEach(function (f) { p[f[0]] = r[f[1]]; }); return p; }
+  function syncPay() {
+    if (!SW.payQueue || !user || !sb) return Promise.resolve();
+    var q = SW.payQueue(), done = [];
+    var chain = q.reduce(function (pr, x) { return pr.then(function () {
+      var t = sb.from('paychecks'), op = x.op === 'up' ? t.upsert([payRow(x.p)], { onConflict: 'user_id,id' }) : t.delete().eq('id', x.id);
+      return op.then(function (r) { if (r && r.error) throw r.error; done.push(x.q); }); }); }, Promise.resolve());
+    return chain.then(function () { if (done.length) SW.payDone(done); return sb.from('paychecks').select('*'); }, function (e) { if (done.length) SW.payDone(done); throw e; })
+      .then(function (res) { if (res.error) throw res.error; SW.paySet((res.data || []).map(payFrom)); });
   }
   function changed() { if (applying || !user) return; clearTimeout(timer); timer = setTimeout(sync, 800); }
 
@@ -92,7 +106,8 @@
     }
     SW.unlock();
   }
-  function pending() { var loc = SW.get(), m = meta(); if (!user || m.uid !== user.id) return loc.length;
+  function pending() { return pendingShifts() + (SW.payQueue ? SW.payQueue().length : 0); }
+  function pendingShifts() { var loc = SW.get(), m = meta(); if (!user || m.uid !== user.id) return loc.length;
     var snap = m.snap || {}, n = 0, have = {}; loc.forEach(function (s) { have[s.id] = 1; if (snap[s.id] !== sig(s)) n++; }); Object.keys(snap).forEach(function (id) { if (!have[id]) n++; }); return n; }
   function wipe(uid) {
     // shifts live in the account; device-only settings (roles, goals, schedule) are kept hidden for this user only.

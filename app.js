@@ -3,7 +3,7 @@
   'use strict';
   var $ = function (s) { return document.querySelector(s); }, $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
   var SHIFTS = ['breakfast', 'lunch', 'dinner', 'overnight'];
-  var K = { shifts: 'serverlife.shifts.v2', roles: 'serverlife.roles', last: 'serverlife.lastRole', sched: 'serverlife.schedule', goals: 'serverlife.goals', theme: 'serverlife.theme', icon: 'serverlife.icon', backup: 'serverlife.lastBackup' };
+  var K = { shifts: 'serverlife.shifts.v2', roles: 'serverlife.roles', last: 'serverlife.lastRole', sched: 'serverlife.schedule', goals: 'serverlife.goals', theme: 'serverlife.theme', icon: 'serverlife.icon', backup: 'serverlife.lastBackup', pay: 'serverlife.paychecks', payq: 'serverlife.paychecksQueue' };
   var OLD = { shifts: 'tiptracker.shifts.v1', roles: 'tiptracker.roles', wage: 'tiptracker.wage', sched: 'tiptracker.schedule.v1' };
   var DEFAULT_WAGE = 16.90;
   var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], DOWL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -40,7 +40,7 @@
   function fmtTime(t) { if (!okTime(t)) return ''; var h = +t.slice(0, 2), m = t.slice(3); return ((h % 12) || 12) + (m === '00' ? '' : ':' + m) + (h < 12 ? 'am' : 'pm'); }
   function shiftFor(t) { if (!okTime(t)) return null; var m = +t.slice(0, 2) * 60 + +t.slice(3); return m < 300 ? 'overnight' : m < 630 ? 'breakfast' : m < 900 ? 'lunch' : m < 1260 ? 'dinner' : 'overnight'; }
   /* v26: account required. User data is only read or written while a signed-in session owns this device's data (sidework.owner === session user id). */
-  var USERK = [K.shifts, K.roles, K.last, K.sched, K.goals, K.backup, OLD.shifts, OLD.roles, OLD.wage, OLD.sched], OWNER = 'sidework.owner';
+  var USERK = [K.shifts, K.roles, K.last, K.sched, K.goals, K.backup, OLD.shifts, OLD.roles, OLD.wage, OLD.sched, K.pay, K.payq], OWNER = 'sidework.owner';
   function sessUid() { try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/^sb-.*-auth-token$/.test(k) || k === 'mock.session') { var v = JSON.parse(localStorage.getItem(k)); var u = v && (v.user || (v.currentSession && v.currentSession.user)); if (u && u.id) return u.id; } } } catch (e) {} return null; }
   var unlocked = (function () { var u = sessUid(); return !!u && localStorage.getItem(OWNER) === u; })();
   function uget(k) { return unlocked || USERK.indexOf(k) < 0 ? localStorage.getItem(k) : null; }
@@ -309,7 +309,7 @@
       '<div class="pf-grp">' + L.slice(0, 40).map(function (x) { return '<div class="pf-row"><span class="pf-t">' + (a === b ? '' : esc(nice(x.date)) + ' · ') + esc(cap(x.shift === 'overnight' ? 'late' : x.shift)) + ' · ' + esc(x.role) + '<small>' + (x.clockIn && x.clockOut ? esc(x.clockIn) + '–' + esc(x.clockOut) + ' · ' : '') + x.hours + 'h · wages ' + money(wages(x)) + '</small></span><b class="in-amt">' + money(take(x)) + '</b></div>'; }).join('') + '</div>' +
       '<div class="card in-tips" style="margin-top:12px">' + tipsHTML(A) + '</div>';
     pfSheet('iSheet', true); }
-  function iSub(more, focusId) { $('#iMain').hidden = !!more; $('#iMore').hidden = !more; if (more && focusId) { var e = $('#' + focusId); window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 80); } else window.scrollTo(0, 0); }
+  function iSub(more, focusId) { $('#iMain').hidden = !!more; $('#iMore').hidden = !more || more === 'pay'; if ($('#iPay')) $('#iPay').hidden = more !== 'pay'; if (more === 'pay') { renderPay(); window.scrollTo(0, 0); return; } if (more && focusId) { var e = $('#' + focusId); window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 80); } else window.scrollTo(0, 0); }
   function renderTips() { if (!$('#iBars')) return; var I = insightBars(), R = I.R, list = inRange(R.a, R.b), A = agg(list);
     $('#iRange').textContent = R.txt; $('#iTake').textContent = money(A.take);
     var dl = $('#iDelta'); if (R.vs) { var cur = agg(inRange(R.a, I.ti)), prev = agg(inRange(R.pa, R.pb));
@@ -420,7 +420,7 @@
   /* ---------- navigation ---------- */
   var TAB = { dashboard: 'dashboard', shifts: 'shifts', insights: 'insights', stats: 'insights', profile: 'profile', log: 'shifts', settings: 'profile', tips: 'insights', reports: 'insights' }, ALIAS = { settings: 'profile', tips: 'insights', reports: 'insights', stats: 'insights' }, SUB = { dashboard: 'Performance Overview', shifts: 'Your shifts', log: 'Log a shift', insights: 'Tips & reports', profile: 'Settings & data' }, screen = 'dashboard';
   function go(name, sub) { name = ALIAS[name] || name; if (!document.getElementById('s-' + name)) name = 'dashboard'; screen = name; $('#hdrSub').textContent = SUB[name] || '';
-    $$('.screen').forEach(function (s) { s.hidden = s.id !== 's-' + name; }); if ($('#iMain') && !$('#iMain').hasAttribute('data-eh')) { $('#iMain').hidden = false; $('#iMore').hidden = true; } if ($('#iSheet')) $('#iSheet').hidden = true; if ($('#pfMain')) { pfSub(false); $$('.pf-sheet').forEach(function (x) { x.hidden = true; }); }
+    $$('.screen').forEach(function (s) { s.hidden = s.id !== 's-' + name; }); if ($('#iMain') && !$('#iMain').hasAttribute('data-eh')) { $('#iMain').hidden = false; $('#iMore').hidden = true; if ($('#iPay')) $('#iPay').hidden = true; } if ($('#iSheet')) $('#iSheet').hidden = true; if ($('#pfMain')) { pfSub(false); $$('.pf-sheet').forEach(function (x) { x.hidden = true; }); }
     $$('#tabbar button').forEach(function (b) { var on = b.getAttribute('data-tab') === TAB[name]; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     if (sub) setSeg('shiftsSeg', sub); if (history.replaceState) history.replaceState(null, '', location.pathname + '#' + name); window.scrollTo(0, 0);
     if (name === 'log' && !editing && !pendingSched) setTimeout(function () { if ($('#fIn')) $('#fIn').focus(); }, 60); }
@@ -510,7 +510,92 @@
   function pfSub(more) { $('#pfMain').hidden = !!more; $('#pfMore').hidden = !more; ['#pfMfa', '#pfAdmin'].forEach(function (p) { var e = $(p); if (e) e.hidden = true; }); window.scrollTo(0, 0); }
   var pfLast = null;
   function pfSheet(id, open) { var el = $('#' + id); el.hidden = !open; if (open) { pfLast = document.activeElement; var f = el.querySelector('[data-close]'); if (f) f.focus(); } else if (pfLast && pfLast.focus) pfLast.focus(); }
-  function renderAll() { renderMonthPick(); renderBanner(); renderDashboard(); renderHistory(); renderCalendar(); renderTips(); renderReports(); renderInsightsEmpty(); renderMilestones(); renderProfile(); }
+  /* ---------- paychecks (v31) ----------
+     From Mark's own paystubs. Stub "Reported Cash Tips" are really his CARD tips, so they're labeled "Card tips (on stub)".
+     Take-home for a period = net pay + card tips on stub + cash tips logged in Side Work for shifts in that period.
+     Synced to his account (paychecks table, own rows only). Local edits queue in K.payq until uploaded. */
+  function okDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && iso(fromIso(s)) === s; }
+  function payNorm(p) { if (!p || typeof p !== 'object') return null; var n = function (v) { return v == null || v === '' ? null : (isFinite(+v) ? r2(+v) : NaN); };
+    var o = { id: String(p.id || uid('pc')).slice(0, 64), payDate: p.payDate, start: p.start, end: p.end, hours: n(p.hours), wages: n(p.wages), tips: n(p.tips) || 0, taxes: n(p.taxes) || 0, net: n(p.net), sick: n(p.sick), note: p.note == null ? null : String(p.note).slice(0, 500) };
+    if (!okDate(o.payDate) || !okDate(o.start) || !okDate(o.end) || o.end < o.start) return null;
+    if ([o.hours, o.wages, o.tips, o.taxes, o.net].some(function (v) { return v == null || isNaN(v); }) || (o.sick != null && isNaN(o.sick))) return null; return o; }
+  function loadPay() { var a = getJSON(K.pay); return (Array.isArray(a) ? a : []).map(payNorm).filter(Boolean); }
+  function loadPayQ() { var a = getJSON(K.payq); return Array.isArray(a) ? a.filter(function (x) { return x && (x.op === 'up' && payNorm(x.p) || x.op === 'del' && x.id); }) : []; }
+  var paychecks = loadPay(), payq = loadPayQ(), payEditing = null;
+  function savePay() { setJSON(K.pay, paychecks); setJSON(K.payq, payq); if (window.SideWorkSync) window.SideWorkSync.changed(); }
+  function payDays(a, b) { return Math.round((fromIso(b) - fromIso(a)) / 864e5); }
+  function validatePay(f, list, editId) {
+    if (!okDate(f.start) || !okDate(f.end)) return 'Pick the period start and end dates.';
+    if (f.end < f.start) return 'Period end is before the start.';
+    if (payDays(f.start, f.end) > 31) return 'A pay period should be 31 days or less.';
+    if (!okDate(f.payDate)) return 'Pick the pay date.';
+    if (f.payDate < f.start) return 'Pay date is before the period starts.';
+    if (f.hours == null || isNaN(f.hours) || f.hours < 0 || f.hours > 200) return 'Hours should be between 0 and 200.';
+    if (f.wages == null) return 'Add the wages from your stub.';
+    if (f.taxes == null) return 'Add the taxes from your stub (0 if none).';
+    if ([f.wages, f.tips, f.taxes, f.net].some(function (v) { return v != null && (isNaN(v) || v < 0 || v > 10000); })) return 'Amounts should be between 0 and 10,000.';
+    if (f.net == null) return 'Net pay can’t be below zero. Check wages and taxes.';
+    if (f.sick != null && (isNaN(f.sick) || f.sick < 0 || f.sick > 1000)) return 'Sick hours should be between 0 and 1,000.';
+    if ((list || []).some(function (p) { return p.id !== editId && p.start <= f.end && f.start <= p.end; })) return 'You already have a paystub covering some of those dates.';
+    return ''; }
+  /* Compare one stub with the shifts logged in its period. Gentle flags: hours off by more than 0.25h, card tips off by more than $5. */
+  function payRecon(p, list) { var a = { n: 0, hours: 0, card: 0, cash: 0, unsplit: 0, unsplitN: 0 };
+    (list || []).forEach(function (s) { if (s.date < p.start || s.date > p.end) return; a.n++; a.hours += s.hours || 0; var t = tipsOf(s);
+      if (splitKnown(s)) { a.card += s.card || 0; a.cash += s.cash || 0; } else if (t) { a.unsplit += t; a.unsplitN++; } });
+    a.hours = r2(a.hours); a.card = r2(a.card); a.cash = r2(a.cash); a.unsplit = r2(a.unsplit);
+    a.dh = r2(a.hours - p.hours); a.dc = r2(a.card - p.tips); a.flagH = Math.abs(a.dh) > 0.25 + 1e-9; a.flagC = Math.abs(a.dc) > 5 + 1e-9;
+    a.take = r2(p.net + p.tips + a.cash); a.perHour = p.hours > 0 ? a.take / p.hours : null; return a; }
+  function payYtd(list, sh, year) { list = list || []; if (!year) { var last = list.reduce(function (m, p) { return p.payDate > m ? p.payDate : m; }, ''); year = last ? last.slice(0, 4) : String(new Date().getFullYear()); }
+    var Y = { year: year, n: 0, hours: 0, wages: 0, tips: 0, taxes: 0, net: 0, cash: 0, take: 0, sick: null, sickAt: '' };
+    list.forEach(function (p) { if (p.payDate.slice(0, 4) !== year) return; var a = payRecon(p, sh); Y.n++; Y.hours += p.hours; Y.wages += p.wages; Y.tips += p.tips; Y.taxes += p.taxes; Y.net += p.net; Y.cash += a.cash; Y.take += a.take;
+      if (p.sick != null && p.payDate >= Y.sickAt) { Y.sick = p.sick; Y.sickAt = p.payDate; } });
+    ['hours', 'wages', 'tips', 'taxes', 'net', 'cash', 'take'].forEach(function (k) { Y[k] = r2(Y[k]); }); Y.total = r2(Y.wages + Y.tips); Y.perHour = Y.hours > 0 ? Y.take / Y.hours : null; return Y; }
+  function payRange(p) { var a = fromIso(p.start), b = fromIso(p.end); return MON[a.getMonth()] + ' ' + a.getDate() + ' – ' + (a.getMonth() === b.getMonth() ? '' : MON[b.getMonth()] + ' ') + b.getDate(); }
+  function sgnH(v) { return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2) + 'h'; }
+  function sgnM(v) { return (v > 0 ? '+' : '') + money(v); }
+  function chkRow(label, logged, stub, diff, flag, zero) { return '<div class="pay-chk-r"><span>' + label + '<small>logged ' + logged + ' · stub ' + stub + '</small></span><b class="pill sm ' + (flag ? 'warn' : 'ok') + '">' + (flag ? diff + ' off' : zero ? '✓ Matches' : '✓ Close (' + diff + ')') + '</b></div>'; }
+  function payCard(p) { var a = payRecon(p, shifts), flag = a.flagH || a.flagC;
+    return '<div class="card pay-card" data-pid="' + esc(p.id) + '"><div class="pay-hd"><div><b>' + esc(payRange(p)) + '</b><small>Paid ' + esc(nice(p.payDate)) + '</small></div><button type="button" class="btn sm" data-pact="edit" aria-label="Edit paystub ' + esc(payRange(p)) + '">Edit</button></div>' +
+      '<div class="pay-take"><span>Take-home</span><b>' + money(a.take) + '</b><em>' + rate(a.perHour) + '</em></div>' +
+      '<p class="pay-math">Net ' + money(p.net) + ' + card tips on stub ' + money(p.tips) + ' + cash logged ' + money(a.cash) + ' = ' + money(a.take) + ' ÷ ' + p.hours + 'h</p>' +
+      '<div class="in-lg"><span>Hours</span><b>' + p.hours + 'h</b></div><div class="in-lg"><span>Wages</span><b>' + money(p.wages) + '</b></div><div class="in-lg"><span>Card tips (on stub)</span><b>' + money(p.tips) + '</b></div>' +
+      '<div class="in-lg"><span>Taxes</span><b>−' + money(p.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(p.net) + '</b></div>' + (p.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + p.sick + 'h</b></div>' : '') +
+      '<div class="pay-chk"><p class="lbl">Check vs Side Work · ' + a.n + ' shift' + (a.n === 1 ? '' : 's') + '</p>' +
+      chkRow('Hours', a.hours + 'h', p.hours + 'h', sgnH(a.dh), a.flagH, !a.dh) + chkRow('Card tips', money(a.card), money(p.tips), sgnM(a.dc), a.flagC, !a.dc) +
+      (a.unsplitN ? '<p class="pay-note">' + a.unsplitN + ' shift' + (a.unsplitN === 1 ? '' : 's') + ' (' + money(a.unsplit) + ') ha' + (a.unsplitN === 1 ? 's' : 've') + ' no cash/card split, so ' + (a.unsplitN === 1 ? 'it isn’t' : 'they aren’t') + ' counted. Add the split to make this match.</p>' : '') +
+      (flag ? '<p class="pay-note">Worth a look: ' + (a.flagH && a.flagC ? 'a shift, break or cash/card split may be logged differently than your stub.' : a.flagH ? 'a shift or break may be logged differently than your stub.' : 'a shift’s cash/card split may be off.') + '</p>' : '') + '</div></div>'; }
+  function renderPay() { if (!$('#payList')) return; var sorted = paychecks.slice().sort(function (a, b) { return a.payDate < b.payDate ? 1 : -1; }), Y = payYtd(paychecks, shifts), toCheck = sorted.filter(function (p) { var a = payRecon(p, shifts); return a.flagH || a.flagC; }).length;
+    $('#iPaySub').textContent = paychecks.length ? Y.year + ' take-home ' + rate(Y.perHour) + ' · ' + sorted.length + ' paystub' + (sorted.length === 1 ? '' : 's') + (toCheck ? ' · ' + toCheck + ' to check' : '') : 'Add a paystub to see your real take-home';
+    $('#payYtd').innerHTML = !Y.n ? '<p class="muted s">No paystubs yet. Add one to see wages, taxes and take-home side by side.</p>' :
+      '<div class="pay-take big"><span>' + Y.year + ' take-home</span><b>' + money(Y.take) + '</b><em>' + rate(Y.perHour) + '</em></div><p class="pay-math">Net ' + money(Y.net) + ' + card tips on stub ' + money(Y.tips) + ' + cash logged ' + money(Y.cash) + ' over ' + Y.hours + 'h on ' + Y.n + ' stub' + (Y.n === 1 ? '' : 's') + '</p>' +
+      '<div class="in-lg"><span>Wages</span><b>' + money(Y.wages) + '</b></div><div class="in-lg"><span>Card tips (on stub)</span><b>' + money(Y.tips) + '</b></div><div class="in-lg"><span>Total pay</span><b>' + money(Y.total) + '</b></div>' +
+      '<div class="in-lg"><span>Taxes</span><b>−' + money(Y.taxes) + '</b></div><div class="in-lg"><span>Net pay</span><b class="g">' + money(Y.net) + '</b></div>' + (Y.sick != null ? '<div class="in-lg"><span>Sick hours available</span><b>' + Y.sick + 'h</b></div>' : '');
+    $('#payList').innerHTML = sorted.map(payCard).join('') || '<p class="muted s">Your pay periods will show up here.</p>'; }
+  function payFormVals() { var g = function (id) { return $('#' + id).value; };
+    var f = { start: g('pyStart'), end: g('pyEnd'), payDate: g('pyDate'), hours: num(g('pyHours')), wages: num(g('pyWages')), tips: num(g('pyTips')), taxes: num(g('pyTaxes')), net: num(g('pyNet')), sick: num(g('pySick')) };
+    if (f.tips == null) f.tips = 0;
+    if (f.net == null && f.wages != null && f.taxes != null && !isNaN(f.wages) && !isNaN(f.taxes)) { var n = r2(f.wages - f.taxes); f.net = n >= 0 ? n : null; f.netAuto = true; }
+    return f; }
+  function payHint(e) { if (e && e.type === 'input') $('#pyErr').textContent = ''; var f = payFormVals(), h = [], w = roles[0] ? roles[0].wage : DEFAULT_WAGE;
+    if (f.hours != null && !isNaN(f.hours) && f.wages != null && !isNaN(f.wages)) { var exp = r2(f.hours * w); h.push(f.hours + 'h × ' + money(w) + ' = ' + money(exp) + (Math.abs(exp - f.wages) < 0.02 ? ' ✓ matches wages' : ' (stub says ' + money(f.wages) + ')')); }
+    if (f.netAuto && f.net != null) h.push('Net = wages − taxes = ' + money(f.net));
+    $('#pyHint').textContent = h.join(' · '); }
+  function openPay(p) { payEditing = p ? p.id : null; $('#pyErr').textContent = ''; $('#payH').textContent = p ? 'Edit paystub' : 'Add paystub'; $('#pyDel').hidden = !p;
+    var last = paychecks.slice().sort(function (a, b) { return a.end < b.end ? 1 : -1; })[0], s, e, d;
+    if (p) { s = p.start; e = p.end; d = p.payDate; } else if (last) { s = iso(addDays(fromIso(last.end), 1)); e = iso(addDays(fromIso(s), 13)); d = iso(addDays(fromIso(e), 7)); } else { s = e = d = ''; }
+    $('#pyStart').value = s; $('#pyEnd').value = e; $('#pyDate').value = d;
+    [['pyHours', 'hours'], ['pyWages', 'wages'], ['pyTips', 'tips'], ['pyTaxes', 'taxes'], ['pyNet', 'net'], ['pySick', 'sick']].forEach(function (x) { $('#' + x[0]).value = p && p[x[1]] != null ? p[x[1]] : ''; });
+    payHint(); pfSheet('paySheet', true); setTimeout(function () { var el = $('#pyHours'); if (el && !p) el.focus(); }, 60); }
+  function savePayForm(e) { if (e) e.preventDefault(); var f = payFormVals(), err = validatePay(f, paychecks, payEditing); $('#pyErr').textContent = err; if (err) return false;
+    var rec = payNorm({ id: payEditing || 'pc-' + f.payDate + '-' + Math.random().toString(36).slice(2, 6), payDate: f.payDate, start: f.start, end: f.end, hours: f.hours, wages: f.wages, tips: f.tips, taxes: f.taxes, net: f.net, sick: f.sick,
+      note: payEditing ? (paychecks.find(function (x) { return x.id === payEditing; }) || {}).note : null });
+    if (!rec) { $('#pyErr').textContent = 'Check the paystub details.'; return false; }
+    var was = !!payEditing; paychecks = paychecks.filter(function (x) { return x.id !== rec.id; }).concat([rec]); payq.push({ q: uid('q'), op: 'up', p: rec }); savePay(); renderPay();
+    pfSheet('paySheet', false); payEditing = null; toast(was ? 'Paystub updated' : 'Paystub added'); return true; }
+  function deletePay() { var p = paychecks.find(function (x) { return x.id === payEditing; }); if (!p) return; if (!confirm('Delete the ' + payRange(p) + ' paystub? This can’t be undone.')) return;
+    paychecks = paychecks.filter(function (x) { return x.id !== p.id; }); payq.push({ q: uid('q'), op: 'del', id: p.id }); savePay(); renderPay(); pfSheet('paySheet', false); payEditing = null; toast('Paystub deleted'); }
+  function applyPayQ(list) { payq.forEach(function (x) { if (x.op === 'up') list = list.filter(function (p) { return p.id !== x.p.id; }).concat([x.p]); else list = list.filter(function (p) { return p.id !== x.id; }); }); return list; }
+  function renderAll() { renderMonthPick(); renderBanner(); renderDashboard(); renderHistory(); renderCalendar(); renderTips(); renderReports(); renderInsightsEmpty(); renderMilestones(); renderProfile(); renderPay(); }
 
   function bind() {
     $('#tabbar').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) go(b.getAttribute('data-tab')); });
@@ -524,6 +609,11 @@
     $('#repSeg').addEventListener('click', function (e) { var b = e.target.closest('[data-v]'); if (b) { iMode = b.getAttribute('data-v'); setSeg('repSeg', iMode); renderTips(); } });
     $('#iBars').addEventListener('click', function (e) { var b = e.target.closest('.in-bar'); if (b && !b.disabled) openRange(b.getAttribute('data-a'), b.getAttribute('data-b'), b.getAttribute('data-t')); });
     $('#iGridBtn').addEventListener('click', function () { iSub(true, 'iGridH'); }); $('#iBestBtn').addEventListener('click', function () { iSub(true, 'iBestH'); }); $('#iBack').addEventListener('click', function () { iSub(false); });
+    $('#iPayBtn').addEventListener('click', function () { iSub('pay'); }); $('#iPayBack').addEventListener('click', function () { iSub(false); }); $('#payAdd').addEventListener('click', function () { openPay(null); });
+    $('#payList').addEventListener('click', function (e) { var b = e.target.closest('[data-pact=edit]'); if (!b) return; var id = b.closest('[data-pid]').getAttribute('data-pid'), p = paychecks.find(function (x) { return x.id === id; }); if (p) openPay(p); });
+    $('#payForm').addEventListener('submit', savePayForm); $('#pyDel').addEventListener('click', deletePay); $('#payForm').addEventListener('input', payHint);
+    ['pyHours', 'pyWages', 'pyTips', 'pyTaxes', 'pyNet', 'pySick'].forEach(function (id, i, a) { $('#' + id).addEventListener('keydown', function (e) { if (e.key === 'Enter' && a[i + 1]) { e.preventDefault(); $('#' + a[i + 1]).focus(); } }); });
+    $('#pyStart').addEventListener('change', function () { var v = $('#pyStart').value; if (okDate(v) && !payEditing) { var e2 = iso(addDays(fromIso(v), 13)); $('#pyEnd').value = e2; $('#pyDate').value = iso(addDays(fromIso(e2), 7)); } });
     $('#logBack').addEventListener('click', function () { var was = editing; resetForm(); go(was ? 'shifts' : 'dashboard'); });
     $('#cancelEdit').addEventListener('click', function () { resetForm(); go('shifts'); });
     ['#fIn', '#fOut'].forEach(function (s) { ['input', 'change'].forEach(function (ev) { $(s).addEventListener(ev, function () { var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)); if (sp != null) $('#fHours').value = paidHours(sp); guessShift(); hoursHint(); updateTake();
@@ -575,13 +665,16 @@
     window.addEventListener('hashchange', function () { var k = (location.hash || '').slice(1); if (TAB[k] && (ALIAS[k] || k) !== screen) go(k); });
     var h = (location.hash || '').slice(1); if (prefillFromLink()) { renderAll(); go('log'); } else go(TAB[h] ? h : 'dashboard');
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {}); }
-  window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, spanHours: spanHours, paidHours: paidHours, breakNote: breakNote, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, csvCell: csvCell, validate: validate, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
+  window.__ttTest = { payRecon: payRecon, payYtd: payYtd, validatePay: validatePay, payNorm: payNorm, paychecks: function () { return paychecks.slice(); }, payQueue: function () { return payq.slice(); }, weekSummary: weekSummary, deriveShift: deriveShift, spanHours: spanHours, paidHours: paidHours, breakNote: breakNote, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, csvCell: csvCell, validate: validate, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
   /* Optional cloud sync bridge (sync.js). Never writes unless sync.js is configured and signed in. */
   window.SideWork = { key: K.shifts, normalize: migrate, get: function () { return shifts.slice(); },
     set: function (list) { shifts = list.map(migrate).filter(Boolean); setJSON(K.shifts, shifts); renderAll(); }, toast: function (m) { toast(m); }, userKeys: USERK.slice(), owner: OWNER,
     unlocked: function () { return unlocked; },
     unlock: function () { if (unlocked) return; unlocked = true; document.body.classList.remove('locked'); reload(); go('dashboard'); },
+    payGet: function () { return paychecks.slice(); }, payQueue: function () { return payq.slice(); }, payNorm: payNorm,
+    payDone: function (ids) { payq = payq.filter(function (x) { return ids.indexOf(x.q) < 0; }); setJSON(K.payq, payq); },
+    paySet: function (list) { paychecks = applyPayQ((list || []).map(payNorm).filter(Boolean)); setJSON(K.pay, paychecks); renderPay(); },
     lock: function () { unlocked = false; document.body.classList.add('locked'); reload(); } };
-  function reload() { roles = loadRoles(); shifts = loadShifts(); sched = loadSched(); resetForm(); renderRoleSettings(); renderAll(); }
+  function reload() { roles = loadRoles(); shifts = loadShifts(); paychecks = loadPay(); payq = loadPayQ(); sched = loadSched(); resetForm(); renderRoleSettings(); renderAll(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
