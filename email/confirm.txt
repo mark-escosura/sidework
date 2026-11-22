@@ -1,0 +1,14 @@
+Side Work
+
+Confirm your Side Work account
+
+You created a Side Work account{{ if .Email }} with {{ .Email }}{{ end }}. Open the link below to confirm it. That keeps your shifts private to you and lets you sign in on this phone or another device.
+
+Confirm my account:
+{{ .ConfirmationURL }}
+
+If you didn’t create a Side Work account, you can ignore this email. Nobody can use your address without confirming it.
+
+This link expires. If it doesn’t work, open Side Work and request a new one from Create account.
+
+Side Work tip tracker

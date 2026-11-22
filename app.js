@@ -26,6 +26,17 @@
   function okTime(t) { return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t); }
   function normTime(t) { if (!t) return null; var m = String(t).trim().match(/^(\d{1,2}):(\d{2})/); if (!m) return null; var v = pad(+m[1]) + ':' + m[2]; return okTime(v) ? v : null; }
   function spanHours(a, b) { if (!okTime(a) || !okTime(b)) return null; var d = (+b.slice(0, 2) * 60 + +b.slice(3)) - (+a.slice(0, 2) * 60 + +a.slice(3)); if (d <= 0) d += 1440; return r2(d / 60); }
+  /* 30-min unpaid break when clocked time is 5h or more. Applied only when auto-filling from clock times — never subtracted from hours that already had the break taken off. */
+  function paidHours(sp) { return sp == null ? null : r2(sp >= 5 ? sp - 0.5 : sp); }
+  function clockedLabel(sp) { var m = Math.round(sp * 60), h = Math.floor(m / 60), min = m % 60; return min ? h + 'h ' + min + 'm' : h + 'h'; }
+  function breakNote(sp, h) { if (sp == null) return ''; var paid = paidHours(sp);
+    if (sp >= 5) {
+      if (h == null || isNaN(h) || Math.abs(h - paid) < 0.004) return clockedLabel(sp) + ' − 30m break = ' + paid + 'h paid';
+      if (Math.abs(h - sp) < 0.004) return clockedLabel(sp) + ' clocked · ' + h + 'h saved (no break deducted)';
+      return clockedLabel(sp) + ' clocked · ' + h + 'h override';
+    }
+    if (h == null || isNaN(h) || Math.abs(h - sp) < 0.004) return clockedLabel(sp) + ' paid';
+    return clockedLabel(sp) + ' clocked · ' + h + 'h override'; }
   function fmtTime(t) { if (!okTime(t)) return ''; var h = +t.slice(0, 2), m = t.slice(3); return ((h % 12) || 12) + (m === '00' ? '' : ':' + m) + (h < 12 ? 'am' : 'pm'); }
   function shiftFor(t) { if (!okTime(t)) return null; var m = +t.slice(0, 2) * 60 + +t.slice(3); return m < 300 ? 'overnight' : m < 630 ? 'breakfast' : m < 900 ? 'lunch' : m < 1260 ? 'dinner' : 'overnight'; }
   /* v26: account required. User data is only read or written while a signed-in session owns this device's data (sidework.owner === session user id). */
@@ -270,7 +281,7 @@
   /* banner */
   var pendingSched = null;
   function renderBanner() { var d = dueToLog()[0], b = $('#logBanner'); b.hidden = !d; if (d) { b.setAttribute('data-sid', d.id); $('#bannerText').textContent = 'Log your ' + DOW[fromIso(d.date).getDay()] + ' ' + d.shift + ' shift?'; } }
-  function openFromSched(x) { resetForm(); fillForm({ date: x.date, shift: x.shift, role: x.role, clockIn: x.start, clockOut: x.end, hours: spanHours(x.start, x.end) }); pendingSched = x.id; go('log'); setTimeout(function () { $('#fCash').focus(); }, 60); }
+  function openFromSched(x) { resetForm(); fillForm({ date: x.date, shift: x.shift, role: x.role, clockIn: x.start, clockOut: x.end, hours: paidHours(spanHours(x.start, x.end)) }); pendingSched = x.id; go('log'); setTimeout(function () { $('#fCash').focus(); }, 60); }
 
   /* ---------- tips ---------- */
   function renderInsightsEmpty() { var has = !!shifts.length; $('#iEmpty').hidden = has; $$('#s-insights > *').forEach(function (el) { if (el.id !== 'iEmpty' && !el.classList.contains('h1row')) { if (!has) { if (!el.hasAttribute('data-eh')) { el.setAttribute('data-eh', el.hidden ? '1' : '0'); } el.hidden = true; } else if (el.hasAttribute('data-eh')) { el.hidden = el.getAttribute('data-eh') === '1'; el.removeAttribute('data-eh'); } } }); }
@@ -350,7 +361,8 @@
   var keptShift = null;
   function deriveShift(ci, co) { if (!okTime(ci)) return null; var g = shiftFor(ci); if (okTime(co) && co <= ci && g === 'dinner' && +co.slice(0, 2) >= 2) g = 'overnight'; return g; }
   function guessShift() { var ci = normTime($('#fIn').value), co = normTime($('#fOut').value), g = deriveShift(ci, co) || keptShift, h = spanHours(ci, co);
-    $('#autoShift').innerHTML = g ? 'Shift: <b>' + cap(g) + '</b>' + (h ? ' · ' + h + 'h' + (co && co <= ci ? ' (ends next day)' : '') : '') : '<span class="muted">Shift type fills in from your clock-in time</span>'; }
+    var note = h ? ' · ' + breakNote(h, num($('#fHours').value)) : '', overnight = (h && okTime(ci) && okTime(co) && co <= ci) ? ' (ends next day)' : '';
+    $('#autoShift').innerHTML = g ? 'Shift: <b>' + cap(g) + '</b>' + note + overnight : '<span class="muted">Shift type fills in from your clock-in time</span>'; }
   function resetForm() { var dz = document.getElementById('delShift'); if (dz) dz.hidden = true; editing = null; pendingSched = null; formWage = null; $('#form').reset(); keptShift = null; $('#fDate').value = iso(new Date()); renderRoleChips(defaultRole().name); guessShift();
     $('#saveBtn').textContent = 'Add shift'; $('#logTitle').textContent = 'Log shift'; $('#cancelEdit').hidden = true; $('#formErr').textContent = ''; $('#hoursHint').textContent = ''; $('#legacyNote').hidden = true; $('#more').open = false; moreSummary(); updateTake(); }
   function fillForm(s) { $('#fDate').value = s.date || iso(new Date()); renderRoleChips(s.role || defaultRole().name); formWage = okWage(s.wage) ? s.wage : null;
@@ -376,7 +388,7 @@
     var T = formTips(f), w = f.hours * formRate(f.role), tk = w + (T.tips || 0) - (f.tipout || 0);
     $('#takeLine').innerHTML = 'Take-home <b>' + money(tk) + '</b> · ' + rate(tk / f.hours) + '<br><span class="muted s">Wages ' + money(w) + (T.tips != null ? ' + tips ' + money(T.tips) : ' · no tips') + (f.tipout ? ' − tip-out ' + money(f.tipout) : '') + '</span>'; }
   function hoursHint() { var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)), h = num($('#fHours').value);
-    $('#hoursHint').textContent = sp == null ? '' : h != null && !isNaN(h) && Math.abs(h - sp) > 0.004 ? '(' + sp + 'h clocked, ' + (h < sp ? r2(sp - h) + 'h break' : 'override') + ')' : '(from clock)'; }
+    $('#hoursHint').textContent = breakNote(sp, h); }
   function moreSummary() { var f = readForm(), b = []; if (f.date && f.date !== iso(new Date())) b.push(nice(f.date)); if (f.tipout) b.push('tipped out ' + money(f.tipout)); if (f.sales) b.push('sales ' + money(f.sales)); if (f.note) b.push('note'); $('#moreSum').textContent = b.length ? '· ' + b.join(' · ') : ''; }
   function commit(f) { var role = roleByName(f.role), prev = editingRec(), T = formTips(f), msBefore = milestones(shifts, lastBackup());
     var w = prev && prev.role === f.role && okWage(prev.wage) ? prev.wage : role ? role.wage : prev ? prev.wage : roles[0].wage; if (role && unlocked) localStorage.setItem(K.last, role.id);
@@ -393,7 +405,7 @@
     resetForm(); period = rec.date.slice(0, 7) <= iso(new Date()).slice(0, 7) ? rec.date.slice(0, 7) : period; renderAll(); go(prev ? 'shifts' : 'dashboard'); }
   function prefillFromLink() { var q = new URLSearchParams(location.search); if (!q.has('log') && !q.has('in')) return false;
     var d = q.get('log'), sh = q.get('shift'), rl = roleByName(q.get('role')), ci = normTime(q.get('in')), co = normTime(q.get('out'));
-    resetForm(); fillForm({ date: /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : iso(new Date()), shift: !(ci && co) && SHIFTS.indexOf(sh) >= 0 ? sh : null, role: rl ? rl.name : null, clockIn: ci && co ? ci : null, clockOut: ci && co ? co : null, hours: ci && co ? spanHours(ci, co) : null });
+    resetForm(); fillForm({ date: /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : iso(new Date()), shift: !(ci && co) && SHIFTS.indexOf(sh) >= 0 ? sh : null, role: rl ? rl.name : null, clockIn: ci && co ? ci : null, clockOut: ci && co ? co : null, hours: ci && co ? paidHours(spanHours(ci, co)) : null });
     return true; }
 
   /* ---------- settings ---------- */
@@ -514,7 +526,7 @@
     $('#iGridBtn').addEventListener('click', function () { iSub(true, 'iGridH'); }); $('#iBestBtn').addEventListener('click', function () { iSub(true, 'iBestH'); }); $('#iBack').addEventListener('click', function () { iSub(false); });
     $('#logBack').addEventListener('click', function () { var was = editing; resetForm(); go(was ? 'shifts' : 'dashboard'); });
     $('#cancelEdit').addEventListener('click', function () { resetForm(); go('shifts'); });
-    ['#fIn', '#fOut'].forEach(function (s) { ['input', 'change'].forEach(function (ev) { $(s).addEventListener(ev, function () { guessShift(); var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)); if (sp != null) $('#fHours').value = sp; hoursHint(); updateTake();
+    ['#fIn', '#fOut'].forEach(function (s) { ['input', 'change'].forEach(function (ev) { $(s).addEventListener(ev, function () { var sp = spanHours(normTime($('#fIn').value), normTime($('#fOut').value)); if (sp != null) $('#fHours').value = paidHours(sp); guessShift(); hoursHint(); updateTake();
       if (ev === 'change' && normTime($('#fIn').value) && normTime($('#fOut').value) && !$('#fCash').value) $('#fCash').focus(); }); }); });
     $('#fHours').addEventListener('input', hoursHint); $('#form').addEventListener('input', function () { updateTake(); moreSummary(); }); $('#form').addEventListener('change', updateTake);
     $('#form').addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; var id = e.target && e.target.id;
@@ -563,7 +575,7 @@
     window.addEventListener('hashchange', function () { var k = (location.hash || '').slice(1); if (TAB[k] && (ALIAS[k] || k) !== screen) go(k); });
     var h = (location.hash || '').slice(1); if (prefillFromLink()) { renderAll(); go('log'); } else go(TAB[h] ? h : 'dashboard');
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {}); }
-  window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, csvCell: csvCell, validate: validate, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
+  window.__ttTest = { weekSummary: weekSummary, deriveShift: deriveShift, spanHours: spanHours, paidHours: paidHours, breakNote: breakNote, buildICS: function () { return buildICS(upcoming()); }, toCSV: toCSV, csvCell: csvCell, validate: validate, sched: function () { return sched; }, roles: function () { return roles; }, shifts: function () { return shifts; }, milestones: function (d) { return milestones(shifts, lastBackup(), d ? new Date(d + 'T12:00:00') : undefined); } };
   /* Optional cloud sync bridge (sync.js). Never writes unless sync.js is configured and signed in. */
   window.SideWork = { key: K.shifts, normalize: migrate, get: function () { return shifts.slice(); },
     set: function (list) { shifts = list.map(migrate).filter(Boolean); setJSON(K.shifts, shifts); renderAll(); }, toast: function (m) { toast(m); }, userKeys: USERK.slice(), owner: OWNER,

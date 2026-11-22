@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Side Work · Confirmation email setup</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0F1115;--card:#1A1D23;--input:#242830;--primary:#10B981;--money:#34D399;--text:#F3F4F6;--text2:#9CA3AF;--border:#2D323C}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;padding:calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 32px)}
+    main{max-width:640px;margin:0 auto}
+    .brand{color:var(--money);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    h1{font-size:28px;letter-spacing:-.4px;margin:8px 0 8px;line-height:1.2}
+    h2{font-size:18px;margin:28px 0 10px}
+    p,li{color:var(--text2)} p{margin:0 0 12px}
+    ol{padding-left:1.2em} li{margin:0 0 10px}
+    a{color:var(--money)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin:16px 0}
+    textarea{width:100%;min-height:180px;background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px;font:13px/1.4 ui-monospace,Menlo,monospace}
+    .btn{display:block;width:100%;margin:12px 0 0;border:0;background:var(--primary);color:#06281c;font-weight:700;font-size:16px;padding:14px;border-radius:12px}
+    .note{font-size:14px}
+    code{font-size:14px;color:var(--text)}
+  </style>
+</head>
+<body>
+<main>
+  <p class="brand">Side Work</p>
+  <h1>Set up the confirmation email</h1>
+  <p>Do this in the Supabase dashboard on your iPhone. It takes a few minutes. Don’t change anything else unless a step says to.</p>
+
+  <h2>1. Fix the link destination</h2>
+  <ol>
+    <li>Open Safari and go to <a href="https://supabase.com/dashboard">supabase.com/dashboard</a>. Sign in.</li>
+    <li>Open the <b>side-work</b> project.</li>
+    <li>If you don’t see a sidebar, tap the menu (three lines).</li>
+    <li>Tap <b>Authentication</b>, then <b>URL Configuration</b>.</li>
+    <li>Set <b>Site URL</b> to:<br><code>https://mark-escosura.github.io/sidework/</code></li>
+    <li>Under <b>Redirect URLs</b>, add all three if they aren’t already there:<br>
+      <code>https://mark-escosura.github.io/sidework/</code><br>
+      <code>https://mark-escosura.github.io/sidework</code><br>
+      <code>https://mark-escosura.github.io/sidework/index.html</code><br>
+      If you still see the old <code>/tip-tracker/</code> address, remove it after the new ones are saved.</li>
+  </ol>
+
+  <h2>2. Turn on leaked password protection</h2>
+  <ol>
+    <li>Still under <b>Authentication</b>, open <b>Sign In / Providers</b> and tap <b>Email</b>. If you don’t see it there, check <b>Authentication → Settings</b> for password security.</li>
+    <li>Turn <b>Leaked password protection</b> on.</li>
+    <li>Confirm the minimum password length is <b>8</b>.</li>
+  </ol>
+
+  <h2>3. Paste the Side Work email</h2>
+  <ol>
+    <li>Tap <b>Authentication</b>, then <b>Email Templates</b>, then <b>Confirm signup</b>.</li>
+    <li>Set the <b>Subject</b> to exactly:<br><code>Confirm your Side Work account</code></li>
+    <li>Tap the box below, then tap <b>Copy template</b>. The whole HTML should copy.</li>
+    <li>Go back to the Supabase template body, select everything in that box, and paste.</li>
+    <li>Leave <code>{{ .ConfirmationURL }}</code> as-is. Don’t edit the link.</li>
+    <li>Save.</li>
+  </ol>
+  <div class="card">
+    <p class="note" style="color:#F3F4F6;margin:0 0 8px"><b>Template to copy</b></p>
+    <textarea id="tpl" readonly spellcheck="false"><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>Confirm your Side Work account</title>
+</head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111827;">
+  <!-- preheader: shown in inbox previews -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">
+    Confirm your Side Work account. This email is from Side Work. If you didn’t sign up, you can ignore it.
+  </div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F3F4F6;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid #E5E7EB;">
+          <tr>
+            <td style="background:#0F1115;padding:22px 28px 18px;">
+              <p style="margin:0;color:#34D399;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Side Work</p>
+              <p style="margin:10px 0 0;color:#F3F4F6;font-size:24px;font-weight:700;letter-spacing:-0.3px;line-height:1.25;">Confirm your account</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 28px 8px;font-size:16px;line-height:1.55;color:#111827;">
+              You created a Side Work account{{ if .Email }} with {{ .Email }}{{ end }}. Open the button below to confirm it. That keeps your shifts private to you and lets you sign in on this phone or another device.
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:24px 28px 8px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="#10B981" style="border-radius:12px;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#10B981;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:16px;line-height:1.2;padding:14px 28px;border-radius:12px;">Confirm my account</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 28px 8px;font-size:14px;line-height:1.55;color:#4B5563;">
+              If the button doesn’t work, copy and paste this link into your browser:
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 28px 8px;font-size:14px;line-height:1.5;word-break:break-all;">
+              <a href="{{ .ConfirmationURL }}" style="color:#059669;">{{ .ConfirmationURL }}</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 28px 28px;font-size:13px;line-height:1.5;color:#6B7280;border-top:1px solid #E5E7EB;">
+              If you didn’t create a Side Work account, you can ignore this email. Nobody can use your address without confirming it.
+              <br><br>
+              This link expires. If it doesn’t work, open Side Work and request a new one from Create account.
+            </td>
+          </tr>
+        </table>
+        <p style="max-width:520px;margin:16px 0 0;font-size:12px;line-height:1.4;color:#6B7280;text-align:center;">Side Work tip tracker</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+</textarea>
+    <button type="button" class="btn" id="copy">Copy template</button>
+    <p class="note" id="copied" hidden style="color:#34D399;margin:10px 0 0">Copied. Switch to Supabase and paste it into the template body.</p>
+  </div>
+  <p class="note">Plain-text wording (if you ever see a separate plain-text box) is at <a href="confirm.txt">confirm.txt</a>. Most of the time you only paste the HTML. The raw file is also at <a href="confirm.html">confirm.html</a>.</p>
+
+  <h2>4. What this does not change by itself</h2>
+  <p>The <b>From</b> name and address will still look like Supabase (often <code>noreply@mail.app.supabase.io</code>) until you add custom SMTP later, for example Resend, Postmark, or a Gmail mailbox you control. That’s a separate step, with a sender you choose. The new subject and body already say Side Work, which is the part coworkers see first.</p>
+  <p>After you paste the template, send yourself a test sign-up and confirm the link opens <code>https://mark-escosura.github.io/sidework/</code> and shows a friendly “You’re in” or sign-in screen — not an error or localhost.</p>
+</main>
+<script>
+(function () {
+  var t = document.getElementById('tpl'), b = document.getElementById('copy'), n = document.getElementById('copied');
+  b.addEventListener('click', function () {
+    t.focus(); t.select(); t.setSelectionRange(0, t.value.length);
+    var go = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(t.value) : Promise.reject();
+    go.then(ok, function () { try { ok(document.execCommand('copy')); } catch (e) { ok(false); } });
+    function ok(x) { if (x === false) { n.hidden = false; n.textContent = 'Select the text above, then tap Copy.'; return; } n.hidden = false; n.textContent = 'Copied. Switch to Supabase and paste it into the template body.'; }
+  });
+})();
+</script>
+</body>
+</html>
